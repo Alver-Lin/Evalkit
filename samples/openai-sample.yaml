@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: OpenAI sample — set OPENAI_API_KEY before running
+
+prompts:
+  - 'Answer briefly: {{question}}'
+
+providers:
+  - id: openai:gpt-4o-mini
+    label: gpt-4o-mini
+
+tests:
+  - vars:
+      question: What is the capital of France?
+    assert:
+      - type: icontains
+        value: Paris
+  - vars:
+      question: What is 2 + 2?
+    assert:
+      - type: icontains
+        value: '4'
+  - vars:
+      question: Name a primary color.
+    assert:
+      - type: icontains-any
+        value: [red, blue, yellow]

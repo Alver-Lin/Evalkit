@@ -1,0 +1,9 @@
+{
+  "name": "evalkit-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local promptfoo CLI for EvalKit backend",
+  "dependencies": {
+    "promptfoo": "0.125.1"
+  }
+}

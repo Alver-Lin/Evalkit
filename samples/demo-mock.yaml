@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: EvalKit demo — mock provider (no API key required)
+
+prompts:
+  - 'Translate to {{language}}: {{text}}'
+
+providers:
+  - id: python:mock_provider.py
+    label: mock-translator
+
+tests:
+  - vars:
+      language: French
+      text: Hello world
+    assert:
+      - type: icontains
+        value: bonjour
+  - vars:
+      language: Spanish
+      text: Good morning
+    assert:
+      - type: icontains
+        value: buenos
+  - vars:
+      language: German
+      text: Thank you
+    assert:
+      - type: icontains
+        value: danke

@@ -1,0 +1,27 @@
+# Python
+backend/.venv/
+backend/**/__pycache__/
+*.pyc
+.Python
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Data & local outputs
+backend/data/
+data/runs/
+data/reports/
+tools/node_modules/
+*.log
+.DS_Store
+.env
+.env.*
+
+# Local workspace / agent
+.agents/
+data/configs/
+
+# Editor
+.vscode/
+.idea/
