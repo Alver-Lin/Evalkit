@@ -40,6 +40,15 @@ async def create_run(payload: EvalRunRequest) -> EvalRunSummary:
     return summary
 
 
+@router.delete("/{run_id}")
+def delete_run(run_id: str) -> dict[str, str]:
+    try:
+        run_store.delete(run_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"status": "ok"}
+
+
 @router.get("/{run_id}", response_model=EvalRunDetail)
 def get_run(run_id: str) -> EvalRunDetail:
     try:

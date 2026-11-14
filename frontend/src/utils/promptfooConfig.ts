@@ -23,6 +23,26 @@ function emptyProvider(): VisualProvider {
   return { id: '', label: '', apiKey: '', apiHost: '', organization: '' }
 }
 
+/** Map common aliases to IDs that promptfoo 0.125.x can resolve. */
+export function resolveProviderTarget(id: string, apiHost = ''): { id: string; apiHost: string } {
+  const raw = id.trim()
+  const host = apiHost.trim()
+  if (!raw) return { id: '', apiHost: host }
+
+  const lower = raw.toLowerCase()
+  // Bare "deepseek" or "deepseek:<model>" — use OpenAI-compatible endpoint.
+  if (lower === 'deepseek' || lower.startsWith('deepseek:')) {
+    const model =
+      lower === 'deepseek' ? 'deepseek-chat' : raw.slice(raw.indexOf(':') + 1).trim() || 'deepseek-chat'
+    return {
+      id: model.startsWith('openai:') ? model : `openai:chat:${model}`,
+      apiHost: host || 'https://api.deepseek.com/v1',
+    }
+  }
+
+  return { id: raw, apiHost: host }
+}
+
 export interface VisualConfig {
   description: string
   prompts: string[]
@@ -179,13 +199,15 @@ export function visualToYaml(visual: VisualConfig, existingYaml = ''): string {
   base.providers = visual.providers
     .filter((p) => p.id.trim())
     .map((p) => {
+      const resolved = resolveProviderTarget(p.id, p.apiHost)
       const config: Record<string, string> = {}
       if (p.apiKey.trim()) config.apiKey = p.apiKey.trim()
-      if (p.apiHost.trim()) config.apiBaseUrl = p.apiHost.trim()
+      if (resolved.apiHost) config.apiBaseUrl = resolved.apiHost
       if (p.organization.trim()) config.organization = p.organization.trim()
 
-      const provider: Record<string, unknown> = { id: p.id.trim() }
+      const provider: Record<string, unknown> = { id: resolved.id }
       if (p.label.trim()) provider.label = p.label.trim()
+      else if (/^deepseek/i.test(p.id.trim())) provider.label = p.id.trim()
       if (Object.keys(config).length) provider.config = config
       return provider
     })

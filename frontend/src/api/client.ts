@@ -31,6 +31,7 @@ export const api = {
     cache?: boolean
     description?: string
   }) => http.post<EvalRunSummary>('/runs', payload).then((r) => r.data),
+  deleteRun: (id: string) => http.delete(`/runs/${id}`).then((r) => r.data),
   getReport: (id: string) => http.get<ReportView>(`/runs/${id}/report`).then((r) => r.data),
 }
 

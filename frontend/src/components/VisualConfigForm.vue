@@ -288,7 +288,7 @@ function removeDefaultAssert(index: number) {
                 <a-input
                   v-model:value="model.providers[index].id"
                   class="mono"
-                  placeholder="openai:gpt-4o-mini / python:mock_provider.py"
+                  placeholder="openai:gpt-4o-mini / deepseek / python:mock_provider.py"
                 />
               </div>
               <div class="field span-side">
@@ -307,7 +307,7 @@ function removeDefaultAssert(index: number) {
                 <a-input
                   v-model:value="model.providers[index].apiHost"
                   class="mono"
-                  placeholder="https://api.openai.com/v1"
+                  placeholder="DeepSeek 可留空，默认 https://api.deepseek.com/v1"
                 />
               </div>
               <div class="field span-full">

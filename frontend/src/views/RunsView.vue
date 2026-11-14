@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { api } from '@/api/client'
 import type { EvalRunSummary } from '@/types'
@@ -41,7 +42,7 @@ const columns = [
   { title: '通过 / 失败 / 错误', key: 'counts', width: 160 },
   { title: '通过率', key: 'pass_rate', width: 90 },
   { title: '创建时间', key: 'created_at', width: 170 },
-  { title: '操作', key: 'actions', width: 80 },
+  { title: '操作', key: 'actions', width: 108 },
 ]
 
 const filteredRuns = computed(() => {
@@ -98,6 +99,21 @@ function onPageChange(next: number) {
   nextTick(measureBody)
 }
 
+function confirmDelete(record: EvalRunSummary) {
+  Modal.confirm({
+    title: `删除报告「${record.id}」？`,
+    content: '此操作不可恢复',
+    okText: '确认',
+    cancelText: '取消',
+    okType: 'danger',
+    async onOk() {
+      await api.deleteRun(record.id)
+      message.success('已删除')
+      await load()
+    },
+  })
+}
+
 onMounted(async () => {
   await load()
   await nextTick()
@@ -148,7 +164,6 @@ onUnmounted(() => {
             </a-space>
           </div>
         </div>
-        <a-button type="primary" @click="load">刷新</a-button>
       </div>
 
       <a-table
@@ -197,6 +212,7 @@ onUnmounted(() => {
           <template v-else-if="column.key === 'actions'">
             <div class="row-actions">
               <router-link :to="`/runs/${record.id}`">详情</router-link>
+              <a class="danger" href="#" @click.prevent="confirmDelete(record)">删除</a>
             </div>
           </template>
         </template>
@@ -340,6 +356,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   height: var(--row-h);
+}
+
+.row-actions {
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.danger {
+  color: var(--ek-danger);
+}
+
+.danger:hover {
+  color: #b91c1c;
 }
 
 .mono {

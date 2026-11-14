@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -153,6 +154,12 @@ class RunStore:
         if not path.exists():
             return None
         return _read_json(path)
+
+    def delete(self, run_id: str) -> None:
+        folder = self.run_dir(run_id)
+        if not folder.exists():
+            raise FileNotFoundError(f"Run not found: {run_id}")
+        shutil.rmtree(folder)
 
 
 config_store = ConfigStore()
