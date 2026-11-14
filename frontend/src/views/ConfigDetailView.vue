@@ -188,7 +188,7 @@ onMounted(load)
                     <div class="panel-body">
                       <div class="meta-grid">
                         <div class="field">
-                          <label>名称</label>
+                          <label>任务名称</label>
                           <a-input v-model:value="form.name" placeholder="例如：翻译质量评测" />
                         </div>
                         <div class="field">

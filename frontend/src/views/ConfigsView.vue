@@ -19,6 +19,21 @@ const form = reactive({
   description: '',
 })
 
+type ResultFilter = 'all' | 'succeeded' | 'failed' | 'running' | 'pending' | 'none'
+const draftKeyword = ref('')
+const draftResult = ref<ResultFilter>('all')
+const keyword = ref('')
+const resultFilter = ref<ResultFilter>('all')
+
+const resultFilterOptions = [
+  { label: '全部结果', value: 'all' },
+  { label: '成功', value: 'succeeded' },
+  { label: '失败', value: 'failed' },
+  { label: '运行中', value: 'running' },
+  { label: '等待中', value: 'pending' },
+  { label: '暂无运行', value: 'none' },
+]
+
 const panelRef = ref<HTMLElement | null>(null)
 const bodyHeight = ref(pageSize * 56)
 let resizeObserver: ResizeObserver | null = null
@@ -29,7 +44,7 @@ const panelStyle = computed(() => ({ '--row-h': `${rowHeight.value}px` }))
 
 const columns = [
   { title: '序号', key: 'index', width: 72 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 200, ellipsis: true },
+  { title: '任务名称', dataIndex: 'name', key: 'name', width: 200, ellipsis: true },
   { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
   { title: '运行结果', key: 'result', width: 200 },
   { title: '更新时间', key: 'updated_at', width: 148 },
@@ -46,6 +61,33 @@ const latestRunByConfig = computed(() => {
   }
   return map
 })
+
+const filteredConfigs = computed(() => {
+  const q = keyword.value.trim().toLowerCase()
+  return configs.value.filter((cfg) => {
+    const run = latestRunByConfig.value.get(cfg.id)
+    if (resultFilter.value === 'none' && run) return false
+    if (resultFilter.value !== 'all' && resultFilter.value !== 'none') {
+      if (!run || run.status !== resultFilter.value) return false
+    }
+    if (!q) return true
+    const hay = `${cfg.name} ${cfg.description || ''}`.toLowerCase()
+    return hay.includes(q)
+  })
+})
+
+function applyFilters() {
+  keyword.value = draftKeyword.value
+  resultFilter.value = draftResult.value
+  page.value = 1
+  nextTick(measureBody)
+}
+
+function resetFilters() {
+  draftKeyword.value = ''
+  draftResult.value = 'all'
+  applyFilters()
+}
 
 function buildDefaultYaml(description: string) {
   const escaped = description.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
@@ -70,13 +112,15 @@ tests:
 function measureBody() {
   const panel = panelRef.value
   if (!panel) return
+  const toolbar = panel.querySelector('.panel-toolbar') as HTMLElement | null
   const thead = panel.querySelector('.ant-table-thead') as HTMLElement | null
   const pager = panel.querySelector('.ant-pagination') as HTMLElement | null
   const styles = getComputedStyle(panel)
   const padY = (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0)
+  const toolbarH = toolbar ? toolbar.offsetHeight + 12 : 0
   const headH = thead?.offsetHeight || 40
   const pagerH = pager ? pager.offsetHeight + 8 : 40
-  const next = Math.floor(panel.clientHeight - padY - headH - pagerH)
+  const next = Math.floor(panel.clientHeight - padY - toolbarH - headH - pagerH)
   if (next > 0) bodyHeight.value = next
 }
 
@@ -169,19 +213,37 @@ onUnmounted(() => {
 
 <template>
   <div class="page list-page">
-    <div class="page-header">
-      <div>
-        <h1>测评任务</h1>
-        <p>定义 Prompt、Provider 与 Tests，保存后即可跑 promptfoo</p>
-      </div>
-      <a-button type="primary" @click="open = true">新建配置</a-button>
-    </div>
-
     <div ref="panelRef" class="panel table-panel" :style="panelStyle">
+      <div class="panel-toolbar">
+        <div class="panel-toolbar-main">
+          <h1 class="panel-title">测评任务</h1>
+          <div class="filter-bar">
+            <a-input
+              v-model:value="draftKeyword"
+              allow-clear
+              placeholder="搜索名称 / 描述"
+              class="filter-search"
+              @pressEnter="applyFilters"
+            />
+            <a-select
+              v-model:value="draftResult"
+              :options="resultFilterOptions"
+              class="filter-select"
+              placeholder="运行结果"
+            />
+            <a-space :size="8">
+              <a-button type="primary" @click="applyFilters">查询</a-button>
+              <a-button @click="resetFilters">重置</a-button>
+            </a-space>
+          </div>
+        </div>
+        <a-button type="primary" @click="open = true">新建配置</a-button>
+      </div>
+
       <a-table
         class="config-table"
         :columns="columns"
-        :data-source="configs"
+        :data-source="filteredConfigs"
         :loading="loading"
         row-key="id"
         :scroll="{ y: scrollY }"
@@ -236,7 +298,7 @@ onUnmounted(() => {
       @ok="createConfig"
     >
       <a-form layout="vertical">
-        <a-form-item label="名称" required>
+        <a-form-item label="任务名称" required>
           <a-input v-model:value="form.name" placeholder="例如：翻译质量评测" />
         </a-form-item>
         <a-form-item label="描述">
@@ -252,6 +314,49 @@ onUnmounted(() => {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  gap: 0;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
+.panel-toolbar-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ek-ink);
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.filter-search {
+  width: 220px;
+}
+
+.filter-select {
+  width: 150px;
 }
 
 .table-panel {
@@ -261,7 +366,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 12px 16px 12px;
+  padding: 16px 16px 12px;
   --row-h: 56px;
 }
 

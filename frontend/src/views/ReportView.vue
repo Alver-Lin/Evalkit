@@ -23,12 +23,12 @@ type ResultFilter = 'all' | 'pass' | 'fail' | 'error'
 
 const filter = ref<ResultFilter>('all')
 const keyword = ref('')
-const selectedProvider = ref<string>('all')
-const selectedPrompt = ref<string>('all')
+const selectedProvider = ref<string[]>([])
+const selectedPrompt = ref<string[]>([])
 const draftFilter = ref<ResultFilter>('all')
 const draftKeyword = ref('')
-const draftProvider = ref<string>('all')
-const draftPrompt = ref<string>('all')
+const draftProvider = ref<string[]>([])
+const draftPrompt = ref<string[]>([])
 const matrixFiltersReady = ref(false)
 const detailOpen = ref(false)
 const detailRow = ref<ReportRow | null>(null)
@@ -108,7 +108,7 @@ function openDetail(row: ReportRow) {
 function shortPrompt(text: string, index: number) {
   const oneLine = text.replace(/\s+/g, ' ').trim()
   if (!oneLine) return `提示词 ${index + 1}`
-  return oneLine.length > 28 ? `${oneLine.slice(0, 28)}…` : oneLine
+  return oneLine.length > 8 ? `${oneLine.slice(0, 8)}...` : oneLine
 }
 
 const matrixColumns = computed<MatrixCol[]>(() => {
@@ -147,36 +147,33 @@ const matrixColumns = computed<MatrixCol[]>(() => {
 
 const providerOptions = computed(() => {
   const names = Array.from(new Set(matrixColumns.value.map((c) => c.provider)))
-  return [{ label: '全部供应商', value: 'all' }, ...names.map((n) => ({ label: n, value: n }))]
+  return names.map((n) => ({ label: n, value: n, title: n }))
 })
 
 const promptOptions = computed(() => {
-  const seen = new Map<string, { label: string; title: string }>()
+  const seen = new Map<string, { label: string; full: string }>()
   for (const col of matrixColumns.value) {
-    if (draftProvider.value !== 'all' && col.provider !== draftProvider.value) continue
+    if (draftProvider.value.length && !draftProvider.value.includes(col.provider)) continue
     if (!seen.has(col.prompt)) {
       const full = col.prompt.replace(/\s+/g, ' ').trim() || col.promptLabel
       seen.set(col.prompt, {
-        // Closed select keeps a short label; dropdown option slot shows full text.
-        label: col.promptLabel,
-        title: full,
+        label: shortPrompt(full, 0),
+        full,
       })
     }
   }
-  return [
-    { label: '全部提示词', value: 'all', title: '全部提示词' },
-    ...Array.from(seen.entries()).map(([value, meta]) => ({
-      value,
-      label: meta.label,
-      title: meta.title,
-    })),
-  ]
+  return Array.from(seen.entries()).map(([value, meta]) => ({
+    value,
+    label: meta.label,
+    full: meta.full,
+    title: meta.full,
+  }))
 })
 
 const visibleMatrixColumns = computed(() =>
   matrixColumns.value.filter((col) => {
-    if (selectedProvider.value !== 'all' && col.provider !== selectedProvider.value) return false
-    if (selectedPrompt.value !== 'all' && col.prompt !== selectedPrompt.value) return false
+    if (selectedProvider.value.length && !selectedProvider.value.includes(col.provider)) return false
+    if (selectedPrompt.value.length && !selectedPrompt.value.includes(col.prompt)) return false
     return true
   }),
 )
@@ -249,81 +246,74 @@ function cellOf(record: MatrixRow, key: string | number) {
 function applyMatrixFilters() {
   filter.value = draftFilter.value
   keyword.value = draftKeyword.value
-  selectedProvider.value = draftProvider.value
-  selectedPrompt.value = draftPrompt.value
+  selectedProvider.value = [...draftProvider.value]
+  selectedPrompt.value = [...draftPrompt.value]
 }
 
 function resetMatrixFilters() {
   draftFilter.value = 'all'
   draftKeyword.value = ''
-  draftProvider.value = 'all'
-  draftPrompt.value = 'all'
+  draftProvider.value = []
+  draftPrompt.value = []
   applyMatrixFilters()
 }
 
-function defaultProviderPrompt() {
-  const cols = matrixColumns.value
-  const providers = Array.from(new Set(cols.map((c) => c.provider)))
-  const provider = providers[0] || 'all'
-  return { provider, prompt: 'all' as const }
+function pruneSelection(selected: string[], allowed: string[]) {
+  if (!selected.length) return []
+  return selected.filter((item) => allowed.includes(item))
+}
+
+function multiSelectSummary(omitted: unknown[] | undefined, selectedCount: number) {
+  const extra = Array.isArray(omitted) ? omitted.length : 0
+  const total = selectedCount || extra
+  return total > 1 ? `已选 ${total}` : `+${extra}`
 }
 
 function syncMatrixFilters() {
   const cols = matrixColumns.value
   if (!cols.length) {
-    draftProvider.value = 'all'
-    draftPrompt.value = 'all'
-    selectedProvider.value = 'all'
-    selectedPrompt.value = 'all'
+    draftProvider.value = []
+    draftPrompt.value = []
+    selectedProvider.value = []
+    selectedPrompt.value = []
     matrixFiltersReady.value = false
     return
   }
   const providers = Array.from(new Set(cols.map((c) => c.provider)))
   if (!matrixFiltersReady.value) {
-    const defaults = defaultProviderPrompt()
-    draftProvider.value = defaults.provider
-    draftPrompt.value = defaults.prompt
+    draftProvider.value = []
+    draftPrompt.value = []
     draftFilter.value = 'all'
     draftKeyword.value = ''
     applyMatrixFilters()
     matrixFiltersReady.value = true
     return
   }
-  if (draftProvider.value !== 'all' && !providers.includes(draftProvider.value)) {
-    draftProvider.value = providers[0] || 'all'
-  }
-  if (selectedProvider.value !== 'all' && !providers.includes(selectedProvider.value)) {
-    selectedProvider.value = providers[0] || 'all'
-  }
-  const draftPrompts = Array.from(
+  draftProvider.value = pruneSelection(draftProvider.value, providers)
+  selectedProvider.value = pruneSelection(selectedProvider.value, providers)
+  const draftAllowed = Array.from(
     new Set(
       cols
-        .filter((c) => draftProvider.value === 'all' || c.provider === draftProvider.value)
+        .filter((c) => !draftProvider.value.length || draftProvider.value.includes(c.provider))
         .map((c) => c.prompt),
     ),
   )
-  if (draftPrompt.value !== 'all' && !draftPrompts.includes(draftPrompt.value)) {
-    draftPrompt.value = 'all'
-  }
-  const appliedPrompts = Array.from(
+  draftPrompt.value = pruneSelection(draftPrompt.value, draftAllowed)
+  const appliedAllowed = Array.from(
     new Set(
       cols
-        .filter((c) => selectedProvider.value === 'all' || c.provider === selectedProvider.value)
+        .filter((c) => !selectedProvider.value.length || selectedProvider.value.includes(c.provider))
         .map((c) => c.prompt),
     ),
   )
-  if (selectedPrompt.value !== 'all' && !appliedPrompts.includes(selectedPrompt.value)) {
-    selectedPrompt.value = 'all'
-  }
+  selectedPrompt.value = pruneSelection(selectedPrompt.value, appliedAllowed)
 }
 
 watch(matrixColumns, () => syncMatrixFilters(), { immediate: true })
 watch(draftProvider, () => {
   if (!matrixFiltersReady.value) return
-  const prompts = promptOptions.value.map((p) => p.value)
-  if (draftPrompt.value !== 'all' && !prompts.includes(draftPrompt.value)) {
-    draftPrompt.value = 'all'
-  }
+  const allowed = promptOptions.value.map((p) => p.value)
+  draftPrompt.value = pruneSelection(draftPrompt.value, allowed)
 })
 
 const pieOption = computed(() => {
@@ -472,12 +462,12 @@ async function load() {
   matrixFiltersReady.value = false
   draftFilter.value = 'all'
   draftKeyword.value = ''
-  draftProvider.value = 'all'
-  draftPrompt.value = 'all'
+  draftProvider.value = []
+  draftPrompt.value = []
   filter.value = 'all'
   keyword.value = ''
-  selectedProvider.value = 'all'
-  selectedPrompt.value = 'all'
+  selectedProvider.value = []
+  selectedPrompt.value = []
   try {
     run.value = await api.getRun(id)
     if (run.value.status === 'succeeded') {
@@ -623,23 +613,43 @@ onUnmounted(() => {
               />
               <a-select
                 v-model:value="draftProvider"
+                mode="multiple"
+                allow-clear
+                show-search
+                :max-tag-count="1"
+                :max-tag-text-length="8"
                 :options="providerOptions"
-                class="filter-select"
+                class="filter-select filter-select-multi"
                 placeholder="全部供应商"
-              />
+                option-filter-prop="label"
+              >
+                <template #maxTagPlaceholder="omittedValues">
+                  <span class="multi-more">{{ multiSelectSummary(omittedValues, draftProvider.length) }}</span>
+                </template>
+              </a-select>
               <a-select
                 v-model:value="draftPrompt"
+                mode="multiple"
+                allow-clear
+                show-search
+                :max-tag-count="1"
                 :options="promptOptions"
-                class="filter-select filter-select-prompt"
+                class="filter-select filter-select-multi"
                 placeholder="全部提示词"
                 option-label-prop="label"
+                option-filter-prop="label"
                 popup-class-name="prompt-filter-dropdown"
-                :dropdown-match-select-width="false"
-                :dropdown-style="{ minWidth: '420px', maxWidth: '560px' }"
               >
-                <template #option="{ value, label, title }">
-                  <div v-if="value === 'all'">{{ label }}</div>
-                  <div v-else class="prompt-option-full">{{ title || value }}</div>
+                <template #option="{ value, label, full }">
+                  <a-tooltip placement="right" :overlay-style="{ maxWidth: '420px' }">
+                    <template #title>
+                      <div class="prompt-tooltip-full">{{ full || value }}</div>
+                    </template>
+                    <span class="prompt-option-short">{{ label }}</span>
+                  </a-tooltip>
+                </template>
+                <template #maxTagPlaceholder="omittedValues">
+                  <span class="multi-more">{{ multiSelectSummary(omittedValues, draftPrompt.length) }}</span>
                 </template>
               </a-select>
               <a-space :size="8">
@@ -660,6 +670,19 @@ onUnmounted(() => {
                 <template v-if="matrixColMap.get(String(column.key))">
                   <div class="col-head">
                     <div class="col-provider">{{ matrixColMap.get(String(column.key))!.provider }}</div>
+                    <a-tooltip
+                      placement="topLeft"
+                      :overlay-style="{ maxWidth: '420px' }"
+                    >
+                      <template #title>
+                        <div class="prompt-tooltip-full">
+                          {{ matrixColMap.get(String(column.key))!.prompt }}
+                        </div>
+                      </template>
+                      <div class="col-prompt">
+                        {{ matrixColMap.get(String(column.key))!.promptLabel }}
+                      </div>
+                    </a-tooltip>
                     <div
                       class="col-rate mono"
                       :class="{
@@ -667,10 +690,9 @@ onUnmounted(() => {
                         bad: matrixColMap.get(String(column.key))!.passRate < 50,
                       }"
                     >
-                      {{ matrixColMap.get(String(column.key))!.passRate.toFixed(2) }}% passing
+                      {{ matrixColMap.get(String(column.key))!.passRate.toFixed(2) }}% pass
                       ({{ matrixColMap.get(String(column.key))!.pass }}/{{ matrixColMap.get(String(column.key))!.total }})
                     </div>
-                    <div class="col-prompt">{{ matrixColMap.get(String(column.key))!.prompt }}</div>
                   </div>
                 </template>
               </template>
@@ -847,8 +869,38 @@ onUnmounted(() => {
   width: 150px;
 }
 
-.filter-select-prompt {
-  width: 240px;
+.filter-select-multi {
+  width: 150px;
+}
+
+.filter-select-multi :deep(.ant-select-selector) {
+  align-items: center;
+  padding-inline: 8px !important;
+}
+
+.filter-select-multi :deep(.ant-select-selection-overflow) {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.filter-select-multi :deep(.ant-select-selection-item) {
+  max-width: 72px;
+  margin-inline-end: 4px !important;
+  height: 22px !important;
+  line-height: 20px !important;
+  border: none !important;
+  background: var(--ek-raised) !important;
+  border-radius: 4px !important;
+  font-size: 12px;
+}
+
+.filter-select-multi :deep(.ant-select-selection-item-content) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-select-multi :deep(.ant-select-selection-placeholder) {
+  inset-inline-start: 8px !important;
 }
 
 .detail-table :deep(.ant-table-thead > tr > th) {
@@ -896,10 +948,10 @@ onUnmounted(() => {
   font-size: 11px;
   color: var(--ek-muted);
   line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
 }
 
 .case-title {
@@ -1070,30 +1122,24 @@ onUnmounted(() => {
 </style>
 
 <style>
-.prompt-filter-dropdown.ant-select-dropdown {
-  max-width: min(560px, 92vw);
+.prompt-option-short {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
-.prompt-filter-dropdown .ant-select-item {
-  height: auto !important;
-  min-height: 32px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  white-space: normal;
-  line-height: 1.45;
-}
-
-.prompt-filter-dropdown .ant-select-item-option-content {
-  white-space: normal;
-  word-break: break-word;
-  overflow: visible;
-  text-overflow: unset;
-}
-
-.prompt-option-full {
-  white-space: normal;
+.prompt-tooltip-full {
+  white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.45;
-  color: var(--ek-ink, #111827);
+  max-width: 400px;
+}
+
+.multi-more {
+  font-size: 12px;
+  color: var(--ek-secondary, #4b5565);
 }
 </style>
