@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
+import type { MenuProps } from 'ant-design-vue'
+import { ArrowLeftOutlined, DownOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -19,6 +21,11 @@ const router = useRouter()
 const loading = ref(false)
 const run = ref<EvalRunDetail | null>(null)
 const report = ref<ReportViewData | null>(null)
+const canDownload = computed(() => {
+  if (!run.value) return false
+  if (run.value.status === 'pending' || run.value.status === 'running') return false
+  return Boolean(run.value.total_count || run.value.report_json_url || run.value.report_html_url)
+})
 type ResultFilter = 'all' | 'pass' | 'fail' | 'error'
 
 const filter = ref<ResultFilter>('all')
@@ -32,6 +39,8 @@ const draftPrompt = ref<string[]>([])
 const matrixFiltersReady = ref(false)
 const detailOpen = ref(false)
 const detailRow = ref<ReportRow | null>(null)
+const matrixPage = ref(1)
+const matrixPageSize = 10
 let timer: number | undefined
 
 const resultFilterOptions = [
@@ -220,6 +229,17 @@ const filteredMatrixRows = computed(() => {
   })
 })
 
+const matrixTotal = computed(() => filteredMatrixRows.value.length)
+
+const pagedMatrixRows = computed(() => {
+  const start = (matrixPage.value - 1) * matrixPageSize
+  return filteredMatrixRows.value.slice(start, start + matrixPageSize)
+})
+
+const matrixScrollX = computed(
+  () => 180 + 220 + Math.max(visibleMatrixColumns.value.length, 1) * 280,
+)
+
 const matrixTableColumns = computed(() => {
   const fixed = [
     { title: '测试项', key: 'description', dataIndex: 'description', width: 180, fixed: 'left' as const },
@@ -248,7 +268,15 @@ function applyMatrixFilters() {
   keyword.value = draftKeyword.value
   selectedProvider.value = [...draftProvider.value]
   selectedPrompt.value = [...draftPrompt.value]
+  matrixPage.value = 1
 }
+
+function clampMatrixPage() {
+  const maxPage = Math.max(1, Math.ceil(matrixTotal.value / matrixPageSize) || 1)
+  if (matrixPage.value > maxPage) matrixPage.value = maxPage
+}
+
+watch(matrixTotal, () => clampMatrixPage())
 
 function resetMatrixFilters() {
   draftFilter.value = 'all'
@@ -470,7 +498,7 @@ async function load() {
   selectedPrompt.value = []
   try {
     run.value = await api.getRun(id)
-    if (run.value.status === 'succeeded') {
+    if (run.value.status === 'succeeded' || run.value.status === 'failed') {
       report.value = await api.getReport(id)
     }
   } catch (err: any) {
@@ -498,6 +526,16 @@ function download(kind: 'json' | 'html' | 'csv') {
   }
 }
 
+const onExportMenuClick: MenuProps['onClick'] = ({ key }) => {
+  if (key === 'json' || key === 'csv' || key === 'html') {
+    download(key)
+  }
+}
+
+function popupContainer() {
+  return document.body
+}
+
 onMounted(() => {
   load()
   timer = window.setInterval(async () => {
@@ -505,7 +543,7 @@ onMounted(() => {
     if (run.value.status === 'pending' || run.value.status === 'running') {
       try {
         run.value = await api.getRun(String(route.params.id))
-        if (run.value.status === 'succeeded') {
+        if (run.value.status === 'succeeded' || run.value.status === 'failed') {
           report.value = await api.getReport(String(route.params.id))
         }
       } catch {
@@ -528,44 +566,54 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="page">
-    <div class="page-header">
-      <div>
-        <h1>测评报告</h1>
-        <p>
-          <span class="mono">{{ route.params.id }}</span>
-          <span class="sep">·</span>
-          {{ run?.config_name }}
-        </p>
-      </div>
-      <a-space>
-        <a-button @click="router.push('/runs')">返回</a-button>
-        <a-button :disabled="run?.status !== 'succeeded'" @click="download('json')">JSON</a-button>
-        <a-button :disabled="run?.status !== 'succeeded'" @click="download('csv')">CSV</a-button>
-        <a-button type="primary" :disabled="run?.status !== 'succeeded'" @click="download('html')">
-          HTML
-        </a-button>
-      </a-space>
-    </div>
-
-    <a-spin :spinning="loading">
+  <div class="page report-page">
+    <div class="page-spin">
+      <a-spin :spinning="loading">
       <div class="report-body">
         <div class="panel meta" v-if="run">
           <div class="meta-row">
-            <StatusTag :status="run.status" />
-            <span class="meta-item">
-              通过率
-              <strong class="mono accent">{{ run.pass_rate }}%</strong>
-            </span>
-            <span class="meta-item mono">
-              {{ run.pass_count }} 通过 / {{ run.fail_count }} 失败 / {{ run.error_count }} 错误
-            </span>
-            <span v-if="run.duration_ms" class="meta-item mono">
-              {{ (run.duration_ms / 1000).toFixed(1) }}s
-            </span>
-            <span class="meta-item mono muted">
-              {{ dayjs(run.created_at).format('YYYY-MM-DD HH:mm:ss') }}
-            </span>
+            <div class="meta-main">
+              <a-tooltip title="返回列表">
+                <a-button type="text" class="back-btn" @click="router.push('/runs')">
+                  <ArrowLeftOutlined />
+                </a-button>
+              </a-tooltip>
+              <span class="task-name" :title="run.config_name">{{ run.config_name || '未命名任务' }}</span>
+              <StatusTag :status="run.status" />
+              <span class="meta-item">
+                通过率
+                <strong class="mono accent">{{ run.pass_rate }}%</strong>
+              </span>
+              <span class="meta-item mono">
+                {{ run.pass_count }} 通过 / {{ run.fail_count }} 失败 / {{ run.error_count }} 错误
+              </span>
+              <span v-if="run.duration_ms" class="meta-item mono">
+                {{ (run.duration_ms / 1000).toFixed(1) }}s
+              </span>
+              <span class="meta-item mono muted">
+                {{ dayjs(run.created_at).format('YYYY-MM-DD HH:mm:ss') }}
+              </span>
+            </div>
+            <div class="export-wrap">
+              <a-dropdown
+                :disabled="!canDownload"
+                :trigger="['click']"
+                placement="bottomRight"
+                :get-popup-container="popupContainer"
+              >
+                <a-button type="primary">
+                  导出
+                  <DownOutlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="onExportMenuClick">
+                    <a-menu-item key="json">导出 JSON</a-menu-item>
+                    <a-menu-item key="csv">导出 CSV</a-menu-item>
+                    <a-menu-item key="html">导出 HTML</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </div>
           </div>
           <a-alert
             v-if="run.status === 'failed'"
@@ -590,7 +638,7 @@ onUnmounted(() => {
               <VChart class="chart" :option="pieOption" autoresize />
             </div>
             <div class="panel">
-              <div class="section-title">Provider 通过率</div>
+              <div class="section-title">供应商通过率</div>
               <VChart class="chart" :option="barOption" autoresize />
             </div>
           </div>
@@ -658,86 +706,100 @@ onUnmounted(() => {
               </a-space>
             </div>
 
-            <a-table
-              class="detail-table"
-              :columns="matrixTableColumns"
-              :data-source="filteredMatrixRows"
-              row-key="key"
-              :scroll="{ x: 180 + 220 + Math.max(visibleMatrixColumns.length, 1) * 280 }"
-              :pagination="{ pageSize: 10, showTotal: (total: number) => `共 ${total} 条` }"
-            >
-              <template #headerCell="{ column }">
-                <template v-if="matrixColMap.get(String(column.key))">
-                  <div class="col-head">
-                    <div class="col-provider">{{ matrixColMap.get(String(column.key))!.provider }}</div>
-                    <a-tooltip
-                      placement="topLeft"
-                      :overlay-style="{ maxWidth: '420px' }"
-                    >
-                      <template #title>
-                        <div class="prompt-tooltip-full">
-                          {{ matrixColMap.get(String(column.key))!.prompt }}
+            <div class="detail-body">
+              <div class="table-scroll">
+                <a-table
+                  class="detail-table"
+                  :columns="matrixTableColumns"
+                  :data-source="pagedMatrixRows"
+                  row-key="key"
+                  :scroll="{ x: matrixScrollX }"
+                  :pagination="false"
+                >
+                  <template #headerCell="{ column }">
+                    <template v-if="matrixColMap.get(String(column.key))">
+                      <div class="col-head">
+                        <div class="col-provider">{{ matrixColMap.get(String(column.key))!.provider }}</div>
+                        <a-tooltip
+                          placement="topLeft"
+                          :overlay-style="{ maxWidth: '420px' }"
+                        >
+                          <template #title>
+                            <div class="prompt-tooltip-full">
+                              {{ matrixColMap.get(String(column.key))!.prompt }}
+                            </div>
+                          </template>
+                          <div class="col-prompt">
+                            {{ matrixColMap.get(String(column.key))!.promptLabel }}
+                          </div>
+                        </a-tooltip>
+                        <div
+                          class="col-rate mono"
+                          :class="{
+                            ok: matrixColMap.get(String(column.key))!.passRate >= 80,
+                            bad: matrixColMap.get(String(column.key))!.passRate < 50,
+                          }"
+                        >
+                          {{ matrixColMap.get(String(column.key))!.passRate.toFixed(2) }}% pass
+                          ({{ matrixColMap.get(String(column.key))!.pass }}/{{ matrixColMap.get(String(column.key))!.total }})
                         </div>
-                      </template>
-                      <div class="col-prompt">
-                        {{ matrixColMap.get(String(column.key))!.promptLabel }}
                       </div>
-                    </a-tooltip>
-                    <div
-                      class="col-rate mono"
-                      :class="{
-                        ok: matrixColMap.get(String(column.key))!.passRate >= 80,
-                        bad: matrixColMap.get(String(column.key))!.passRate < 50,
-                      }"
-                    >
-                      {{ matrixColMap.get(String(column.key))!.passRate.toFixed(2) }}% pass
-                      ({{ matrixColMap.get(String(column.key))!.pass }}/{{ matrixColMap.get(String(column.key))!.total }})
-                    </div>
-                  </div>
-                </template>
-              </template>
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'description'">
-                  <div class="case-title">{{ record.description || '—' }}</div>
-                </template>
-                <template v-else-if="column.key === 'input'">
-                  <div class="vars-cell mono">{{ inputPreview(record.vars) }}</div>
-                </template>
-                <template v-else-if="cellOf(record, column.key)">
-                  <div class="result-card">
-                    <div class="result-top">
-                      <span class="result-badge" :class="rowTone(cellOf(record, column.key)!)">
-                        {{ resultBadge(cellOf(record, column.key)!) }}
-                      </span>
-                      <a
-                        class="detail-link"
-                        href="#"
-                        @click.prevent="openDetail(cellOf(record, column.key)!)"
-                      >
-                        详情
-                      </a>
-                    </div>
-                    <div class="result-output">
-                      {{
-                        cellOf(record, column.key)!.output ||
-                        cellOf(record, column.key)!.error ||
-                        cellOf(record, column.key)!.reason ||
-                        '—'
-                      }}
-                    </div>
-                    <div class="result-meta mono">
-                      <span v-if="latencyText(cellOf(record, column.key)!.latencyMs)">
-                        {{ latencyText(cellOf(record, column.key)!.latencyMs) }}
-                      </span>
-                      <span v-if="cellOf(record, column.key)!.score != null">
-                        Score: {{ cellOf(record, column.key)!.score }}
-                      </span>
-                    </div>
-                  </div>
-                </template>
-                <span v-else class="muted">—</span>
-              </template>
-            </a-table>
+                    </template>
+                  </template>
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'description'">
+                      <div class="case-title">{{ record.description || '—' }}</div>
+                    </template>
+                    <template v-else-if="column.key === 'input'">
+                      <div class="vars-cell mono">{{ inputPreview(record.vars) }}</div>
+                    </template>
+                    <template v-else-if="cellOf(record, column.key)">
+                      <div class="result-card">
+                        <div class="result-top">
+                          <span class="result-badge" :class="rowTone(cellOf(record, column.key)!)">
+                            {{ resultBadge(cellOf(record, column.key)!) }}
+                          </span>
+                          <a
+                            class="detail-link"
+                            href="#"
+                            @click.prevent="openDetail(cellOf(record, column.key)!)"
+                          >
+                            详情
+                          </a>
+                        </div>
+                        <div class="result-output">
+                          {{
+                            cellOf(record, column.key)!.output ||
+                            cellOf(record, column.key)!.error ||
+                            cellOf(record, column.key)!.reason ||
+                            '—'
+                          }}
+                        </div>
+                        <div class="result-meta mono">
+                          <span v-if="latencyText(cellOf(record, column.key)!.latencyMs)">
+                            {{ latencyText(cellOf(record, column.key)!.latencyMs) }}
+                          </span>
+                          <span v-if="cellOf(record, column.key)!.score != null">
+                            Score: {{ cellOf(record, column.key)!.score }}
+                          </span>
+                        </div>
+                      </div>
+                    </template>
+                    <span v-else class="muted">—</span>
+                  </template>
+                </a-table>
+              </div>
+              <div class="pager">
+                <a-pagination
+                  v-model:current="matrixPage"
+                  :total="matrixTotal"
+                  :page-size="matrixPageSize"
+                  size="small"
+                  show-less-items
+                  :show-total="(total: number) => `共 ${total} 条`"
+                />
+              </div>
+            </div>
           </div>
         </template>
 
@@ -746,7 +808,8 @@ onUnmounted(() => {
           <pre class="log mono">{{ run.stderr }}</pre>
         </div>
       </div>
-    </a-spin>
+      </a-spin>
+    </div>
 
     <a-drawer
       v-model:open="detailOpen"
@@ -799,16 +862,50 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.sep {
-  margin: 0 6px;
+.back-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-right: -4px;
   color: var(--ek-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  color: var(--ek-ink);
+}
+
+.task-name {
+  max-width: 220px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ek-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .meta-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.meta-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px 16px;
+  min-width: 0;
+}
+
+.export-wrap {
+  flex-shrink: 0;
 }
 
 .meta-item {
@@ -829,10 +926,47 @@ onUnmounted(() => {
   color: var(--ek-muted);
 }
 
+.report-page {
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-spin {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-spin :deep(.ant-spin-nested-loading),
+.page-spin :deep(.ant-spin-container) {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .report-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.report-body > .meta,
+.report-body > .charts {
+  flex: 0 0 auto;
 }
 
 .meta-alert {
@@ -846,11 +980,48 @@ onUnmounted(() => {
 }
 
 .chart {
-  height: 240px;
+  height: 220px;
 }
 
 .detail-panel {
-  padding-top: 16px;
+  padding: 20px 24px 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-panel .section-title,
+.detail-panel .filter-bar {
+  flex: 0 0 auto;
+}
+
+.detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.pager {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 40px;
+  padding: 12px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--ek-border);
+  background: var(--ek-surface);
 }
 
 .filter-bar {
@@ -901,6 +1072,15 @@ onUnmounted(() => {
 
 .filter-select-multi :deep(.ant-select-selection-placeholder) {
   inset-inline-start: 8px !important;
+}
+
+.detail-table {
+  width: 100%;
+}
+
+.detail-table :deep(.ant-table) {
+  width: 100% !important;
+  background: transparent;
 }
 
 .detail-table :deep(.ant-table-thead > tr > th) {
@@ -973,6 +1153,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
   min-width: 0;
 }
 

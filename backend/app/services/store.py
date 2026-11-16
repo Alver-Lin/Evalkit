@@ -101,18 +101,33 @@ class ConfigStore:
             raise ValueError("YAML must include `providers` or `targets`")
 
 
+def _normalize_run_summary(summary: EvalRunSummary) -> EvalRunSummary:
+    """Fix legacy runs marked succeeded despite failed/errored cases."""
+    if summary.status == EvalStatus.succeeded and (summary.fail_count or summary.error_count):
+        summary.status = EvalStatus.failed
+        if not summary.error:
+            parts: list[str] = []
+            if summary.fail_count:
+                parts.append(f"{summary.fail_count} 未通过")
+            if summary.error_count:
+                parts.append(f"{summary.error_count} 错误")
+            summary.error = "，".join(parts) or "测评未全部通过"
+    return summary
+
+
 class RunStore:
     def list(self) -> list[EvalRunSummary]:
         items: list[EvalRunSummary] = []
         for meta_path in settings.runs_dir.glob("*/meta.json"):
-            items.append(EvalRunSummary(**_read_json(meta_path)))
+            summary = _normalize_run_summary(EvalRunSummary(**_read_json(meta_path)))
+            items.append(summary)
         return sorted(items, key=lambda r: r.created_at, reverse=True)
 
     def get(self, run_id: str) -> EvalRunSummary:
         meta_path = settings.runs_dir / run_id / "meta.json"
         if not meta_path.exists():
             raise FileNotFoundError(f"Run not found: {run_id}")
-        return EvalRunSummary(**_read_json(meta_path))
+        return _normalize_run_summary(EvalRunSummary(**_read_json(meta_path)))
 
     def create(
         self,

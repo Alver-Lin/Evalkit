@@ -40,7 +40,7 @@ EvalKit 是面向评测同学的 **Promptfoo 可视化工作台**：配置 Promp
 | 测评任务 | 创建 / 编辑 / 删除 promptfoo 配置（可视化表单或 YAML） |
 | 一键运行 | 异步执行 `promptfoo eval`，支持并发与缓存开关 |
 | 测评报告 | 列表筛选、详情页矩阵对比、JSON / HTML / CSV 下载 |
-| 示例任务 | 启动时自动种子 `Demo Mock Eval`、`OpenAI Sample` |
+| 示例任务 | 启动时自动种子 `OpenAI Sample`（需 `OPENAI_API_KEY`） |
 
 技术栈：
 
@@ -69,7 +69,7 @@ PromptfooRunner (asyncio 子进程)
 核心数据流：
 
 1. 前端保存任务 → 后端写入 `data/configs/{id}/promptfooconfig.yaml` + `meta.json`
-2. 点击「运行」→ 后端创建 `data/runs/{run_id}/`，拷贝配置与附属文件（如 `mock_provider.py`）
+2. 点击「运行」→ 后端创建 `data/runs/{run_id}/`，拷贝配置与附属文件（如自定义 `python:` Provider 脚本）
 3. 子进程执行 promptfoo，写出 `results.json`、`report.html`、`stdout.log`、`stderr.log`
 4. 后端解析结果更新 `meta.json`（通过率、状态等）
 5. 前端轮询运行状态，成功后拉取 `/api/runs/{id}/report` 渲染矩阵
@@ -96,7 +96,7 @@ Evalkit/
 │   │   └── views/           # 任务列表 / 详情 / 报告列表 / 报告详情
 │   └── vite.config.ts       # /api → http://127.0.0.1:8000
 ├── tools/                   # 本地 promptfoo CLI（npm 依赖）
-├── samples/                 # 示例 YAML 与 mock provider
+├── samples/                 # 示例 YAML
 ├── data/                    # 运行时数据（默认 gitignore）
 │   ├── configs/{config_id}/
 │   ├── runs/{run_id}/
@@ -202,7 +202,7 @@ npm run build          # 输出 frontend/dist
 | `openai:gpt-4o-mini` | OpenAI 官方（简写） |
 | `openai:chat:deepseek-chat` | OpenAI Chat Completions 兼容接口，模型名为 `deepseek-chat` |
 | `anthropic:messages:claude-...` | Anthropic |
-| `python:mock_provider.py` | 本地 Python Provider |
+| `python:custom_provider.py` | 本地 Python Provider |
 | `https://...` | 直接 HTTP 端点 |
 
 可视化表单其它字段：
@@ -248,11 +248,11 @@ providers:
 
 ```yaml
 providers:
-  - id: python:mock_provider.py
-    label: mock
+  - id: python:custom_provider.py
+    label: custom
 ```
 
-`mock_provider.py` 需放在该配置目录（`data/configs/{id}/`）下；运行时会连同 YAML 一起拷贝到 `data/runs/{run_id}/`。
+脚本需放在该配置目录（`data/configs/{id}/`）下；运行时会连同 YAML 一起拷贝到 `data/runs/{run_id}/`。
 
 入口约定：
 
@@ -271,7 +271,7 @@ def call_api(prompt: str, options: dict, context: dict):
 |------|------|
 | `type` | 断言类型（必填） |
 | `value` | 期望值 / 评分标准 / 脚本等（视类型） |
-| `threshold` | 相似度、成本、模型评分等阈值（可视化暂不支持，用 YAML） |
+| `threshold` | 相似度、成本、模型评分等阈值（可视化按断言类型显示，并带出默认值） |
 
 - 几乎都可用 `not-` 取反，如 `not-contains`
 - 详细语义与高级参数见官方：[Assertions](https://www.promptfoo.dev/docs/configuration/expected-outputs/) · [Deterministic](https://www.promptfoo.dev/docs/configuration/expected-outputs/deterministic/) · [Model-graded](https://www.promptfoo.dev/docs/configuration/expected-outputs/model-graded/)
@@ -372,19 +372,19 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 - 列表：按运行 ID / 任务名称、运行结果筛选；进行中任务会自动轮询
 - 详情：`/runs/:id`
   - 汇总条：通过率、通过/失败/错误、耗时
-  - 图表：结果分布饼图、Provider 通过率柱状图
+  - 图表：结果分布饼图、供应商通过率柱状图
   - 详细结果矩阵：测试项 ×（供应商 × 提示词）
   - 筛选：关键词、结果、供应商多选、提示词多选 → 查询 / 重置
   - 下载：JSON / CSV / HTML（官方 promptfoo HTML 新标签页打开）
 
 进行中的任务会自动轮询；后端重启会把未完成的 pending/running 标为 failed。
 
-### 6.5 跑通 Demo（无需 Key）
+### 6.5 跑通示例（需 API Key）
 
-1. 打开「测评任务」→ **Demo Mock Eval**
-2. 确认供应商为 `python:mock_provider.py`，同目录有 `mock_provider.py`
+1. 设置环境变量，例如 `export OPENAI_API_KEY=sk-...`
+2. 打开「测评任务」→ **OpenAI Sample**（或新建任务并填写真实供应商）
 3. 点击「运行」
-4. 到报告详情查看 3 条翻译用例结果
+4. 到报告详情查看矩阵结果
 
 ## 7. 数据落盘约定
 
@@ -394,7 +394,7 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 |------|------|
 | `meta.json` | id、名称、描述、时间戳、yaml 全文 |
 | `promptfooconfig.yaml` | 实际评测配置 |
-| `*.py` 等 | 附属资源（如 mock provider） |
+| `*.py` 等 | 附属资源（如自定义 Python Provider） |
 
 ### 运行 `data/runs/{run_id}/`
 

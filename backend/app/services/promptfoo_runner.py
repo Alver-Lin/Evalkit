@@ -47,7 +47,7 @@ class PromptfooRunner:
         report_html = run_store.html_path(run_id)
 
         # Stage config + helpers into the run directory so relative provider
-        # paths (e.g. python:mock_provider.py) resolve correctly.
+        # paths (e.g. python:custom_provider.py) resolve correctly.
         config_yaml = self._stage_config(config_id, run_dir)
 
         cmd = [
@@ -108,8 +108,18 @@ class PromptfooRunner:
             summary.error_count = stats["error_count"]
             summary.total_count = stats["total_count"]
             summary.pass_rate = stats["pass_rate"]
-            summary.status = EvalStatus.succeeded
-            summary.error = None
+            # Process finished, but mark failed when any case failed/errored.
+            if stats["fail_count"] or stats["error_count"]:
+                summary.status = EvalStatus.failed
+                parts: list[str] = []
+                if stats["fail_count"]:
+                    parts.append(f"{stats['fail_count']} 未通过")
+                if stats["error_count"]:
+                    parts.append(f"{stats['error_count']} 错误")
+                summary.error = "，".join(parts) or "测评未全部通过"
+            else:
+                summary.status = EvalStatus.succeeded
+                summary.error = None
             run_store.save(summary)
         except Exception as exc:  # noqa: BLE001
             summary = run_store.get(run_id)

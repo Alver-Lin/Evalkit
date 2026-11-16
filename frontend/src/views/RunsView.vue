@@ -363,12 +363,12 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.danger {
-  color: var(--ek-danger);
+.row-actions a.danger {
+  color: var(--ek-danger) !important;
 }
 
-.danger:hover {
-  color: #b91c1c;
+.row-actions a.danger:hover {
+  color: #b91c1c !important;
 }
 
 .mono {

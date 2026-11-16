@@ -214,19 +214,21 @@ function go(key: string) {
   flex-direction: column;
 }
 
-/* List/detail pages fill the viewport; report pages grow and scroll. */
+/* List/detail/report pages fill the viewport. */
 .content > .list-page,
-.content > .detail-page {
+.content > .detail-page,
+.content > .report-page {
   flex: 1;
   min-height: 0;
   height: 100%;
 }
 
-.content > .detail-page {
+.content > .detail-page,
+.content > .report-page {
   overflow: hidden;
 }
 
-.content > .page:not(.list-page):not(.detail-page) {
+.content > .page:not(.list-page):not(.detail-page):not(.report-page) {
   flex: 0 0 auto;
   height: auto;
   min-height: 100%;

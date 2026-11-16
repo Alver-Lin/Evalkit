@@ -1,88 +1,221 @@
-/** Full assertion types from promptfoo BaseAssertionTypes + SpecialAssertionTypes. */
-export const assertOptions: Array<{ value: string; label: string }> = [
-  // Model-graded / LLM（与 setup UI 优先展示顺序接近）
-  { value: 'similar', label: '语义相似（similar）' },
-  { value: 'similar:cosine', label: '余弦相似（similar:cosine）' },
-  { value: 'similar:dot', label: '点积相似（similar:dot）' },
-  { value: 'similar:euclidean', label: '欧氏相似（similar:euclidean）' },
-  { value: 'llm-rubric', label: '模型评分标准（llm-rubric）' },
-  { value: 'factuality', label: '事实性（factuality）' },
-  { value: 'model-graded-closedqa', label: '封闭问答评分（model-graded-closedqa）' },
-  { value: 'model-graded-factuality', label: '模型事实性评分（model-graded-factuality）' },
-  { value: 'answer-relevance', label: '答案相关性（answer-relevance）' },
-  { value: 'g-eval', label: 'G-Eval 评分（g-eval）' },
-  { value: 'agent-rubric', label: 'Agent 评分标准（agent-rubric）' },
-  { value: 'search-rubric', label: '检索评分标准（search-rubric）' },
-  { value: 'pi', label: 'Pi 评分（pi）' },
+/** Assertion option used by flat selects / lookups. */
+export type AssertOption = {
+  value: string
+  label: string
+  /** Show value input. Default true. */
+  hasValue?: boolean
+  /** Value may be empty (e.g. is-json without schema). */
+  valueOptional?: boolean
+  /** Show threshold input. Default false. */
+  hasThreshold?: boolean
+  /** Prefill when switching to this type (and threshold empty). */
+  defaultThreshold?: number
+  /** Allow picking a configured provider as LLM/embedding grader. */
+  needsGrader?: boolean
+  /** Value placeholder. */
+  valuePlaceholder?: string
+  /** Threshold placeholder. */
+  thresholdPlaceholder?: string
+}
 
-  // 常用文本断言
-  { value: 'contains', label: '包含（contains）' },
-  { value: 'icontains', label: '包含忽略大小写（icontains）' },
-  { value: 'equals', label: '完全相等（equals）' },
-  { value: 'starts-with', label: '以…开头（starts-with）' },
-  { value: 'contains-all', label: '包含全部（contains-all）' },
-  { value: 'contains-any', label: '包含任一项（contains-any）' },
-  { value: 'icontains-all', label: '包含全部忽略大小写（icontains-all）' },
-  { value: 'icontains-any', label: '包含任一项忽略大小写（icontains-any）' },
-  { value: 'not-contains', label: '不得出现某词（not-contains）' },
-  { value: 'regex', label: '正则匹配（regex）' },
-  { value: 'javascript', label: '自定义脚本打分（javascript）' },
-  { value: 'python', label: '自定义脚本打分（python）' },
-  { value: 'ruby', label: '自定义脚本打分（ruby）' },
-  { value: 'webhook', label: 'Webhook 断言（webhook）' },
-  { value: 'classifier', label: '分类器（classifier）' },
-  { value: 'levenshtein', label: '编辑距离（levenshtein）' },
-  { value: 'word-count', label: '词数（word-count）' },
-
-  // 结构 / 格式
-  { value: 'is-json', label: '是否为 JSON（is-json）' },
-  { value: 'contains-json', label: '包含 JSON（contains-json）' },
-  { value: 'is-xml', label: '是否为 XML（is-xml）' },
-  { value: 'contains-xml', label: '包含 XML（contains-xml）' },
-  { value: 'is-html', label: '是否为 HTML（is-html）' },
-  { value: 'contains-html', label: '包含 HTML（contains-html）' },
-  { value: 'is-sql', label: '是否为 SQL（is-sql）' },
-  { value: 'contains-sql', label: '包含 SQL（contains-sql）' },
-  { value: 'is-refusal', label: '是否拒答（is-refusal）' },
-  { value: 'finish-reason', label: '结束原因（finish-reason）' },
-  { value: 'is-valid-function-call', label: '合法函数调用（is-valid-function-call）' },
-  { value: 'is-valid-openai-function-call', label: '合法 OpenAI 函数调用（is-valid-openai-function-call）' },
-  { value: 'is-valid-openai-tools-call', label: '合法 OpenAI Tools 调用（is-valid-openai-tools-call）' },
-
-  // RAG / 上下文
-  { value: 'context-recall', label: '上下文召回（context-recall）' },
-  { value: 'context-relevance', label: '上下文相关性（context-relevance）' },
-  { value: 'context-faithfulness', label: '上下文忠实度（context-faithfulness）' },
-  { value: 'conversation-relevance', label: '对话相关性（conversation-relevance）' },
-
-  // 指标 / 成本
-  { value: 'cost', label: '单次成本阈值（cost）' },
-  { value: 'latency', label: '耗时阈值（latency）' },
-  { value: 'perplexity', label: '困惑度（perplexity）' },
-  { value: 'perplexity-score', label: '困惑度分数（perplexity-score）' },
-  { value: 'bleu', label: 'BLEU（bleu）' },
-  { value: 'gleu', label: 'GLEU（gleu）' },
-  { value: 'meteor', label: 'METEOR（meteor）' },
-  { value: 'rouge-n', label: 'ROUGE-N（rouge-n）' },
-  { value: 'rouge-l', label: 'ROUGE-L（rouge-l）' },
-  { value: 'rouge-s', label: 'ROUGE-S（rouge-s）' },
-  { value: 'moderation', label: '内容审核（moderation）' },
-  { value: 'guardrails', label: '护栏（guardrails）' },
-
-  // Agent / Tool / Trace
-  { value: 'tool-call-f1', label: '工具调用 F1（tool-call-f1）' },
-  { value: 'skill-used', label: '技能是否使用（skill-used）' },
-  { value: 'trajectory:goal-success', label: '轨迹目标成功（trajectory:goal-success）' },
-  { value: 'trajectory:tool-args-match', label: '轨迹工具参数匹配（trajectory:tool-args-match）' },
-  { value: 'trajectory:step-count', label: '轨迹步数（trajectory:step-count）' },
-  { value: 'trajectory:tool-sequence', label: '轨迹工具序列（trajectory:tool-sequence）' },
-  { value: 'trajectory:tool-used', label: '轨迹工具使用（trajectory:tool-used）' },
-  { value: 'trace-error-spans', label: '追踪错误 Span（trace-error-spans）' },
-  { value: 'trace-span-count', label: '追踪 Span 数量（trace-span-count）' },
-  { value: 'trace-span-duration', label: '追踪 Span 耗时（trace-span-duration）' },
-
-  // Special
-  { value: 'select-best', label: '选择最优（select-best）' },
-  { value: 'human', label: '人工评分（human）' },
-  { value: 'max-score', label: '最高分（max-score）' },
+/** Grouped assertion catalog (matches README §6.3 categories). */
+export const assertCategories: Array<{
+  key: string
+  label: string
+  options: AssertOption[]
+}> = [
+  {
+    key: 'model',
+    label: '模型评分',
+    options: [
+      {
+        value: 'similar',
+        label: '语义相似',
+        hasValue: true,
+        hasThreshold: true,
+        defaultThreshold: 0.8,
+        needsGrader: true,
+        valuePlaceholder: '期望语义文本',
+        thresholdPlaceholder: '相似度阈值',
+      },
+      {
+        value: 'llm-rubric',
+        label: '模型评分标准',
+        hasValue: true,
+        hasThreshold: true,
+        defaultThreshold: 0.7,
+        needsGrader: true,
+        valuePlaceholder: '评分标准',
+        thresholdPlaceholder: '最低分数',
+      },
+    ],
+  },
+  {
+    key: 'text',
+    label: '文本匹配',
+    options: [
+      { value: 'contains', label: '包含', hasValue: true, valuePlaceholder: '期望子串' },
+      { value: 'icontains', label: '包含忽略大小写', hasValue: true, valuePlaceholder: '期望子串' },
+      { value: 'equals', label: '完全相等', hasValue: true, valuePlaceholder: '期望全文' },
+      { value: 'starts-with', label: '以…开头', hasValue: true, valuePlaceholder: '期望前缀' },
+      {
+        value: 'contains-all',
+        label: '包含全部',
+        hasValue: true,
+        valuePlaceholder: '多项用逗号分隔，或 JSON 数组',
+      },
+      {
+        value: 'contains-any',
+        label: '包含任一项',
+        hasValue: true,
+        valuePlaceholder: '多项用逗号分隔，或 JSON 数组',
+      },
+      {
+        value: 'icontains-all',
+        label: '包含全部忽略大小写',
+        hasValue: true,
+        valuePlaceholder: '多项用逗号分隔，或 JSON 数组',
+      },
+      {
+        value: 'icontains-any',
+        label: '包含任一项忽略大小写',
+        hasValue: true,
+        valuePlaceholder: '多项用逗号分隔，或 JSON 数组',
+      },
+      {
+        value: 'word-count',
+        label: '词数',
+        hasValue: false,
+        hasThreshold: true,
+        defaultThreshold: 50,
+        thresholdPlaceholder: '最大词数',
+      },
+    ],
+  },
+  {
+    key: 'structure',
+    label: '结构 / 格式',
+    options: [
+      {
+        value: 'is-json',
+        label: '是否为 JSON',
+        hasValue: true,
+        valueOptional: true,
+        valuePlaceholder: '可选 Schema（JSON）',
+      },
+      {
+        value: 'contains-json',
+        label: '包含 JSON',
+        hasValue: true,
+        valueOptional: true,
+        valuePlaceholder: '可选 Schema（JSON）',
+      },
+      {
+        value: 'is-xml',
+        label: '是否为 XML',
+        hasValue: true,
+        valueOptional: true,
+        valuePlaceholder: '可选约束（JSON）',
+      },
+      {
+        value: 'contains-xml',
+        label: '包含 XML',
+        hasValue: true,
+        valueOptional: true,
+        valuePlaceholder: '可选约束（JSON）',
+      },
+      { value: 'is-html', label: '是否为 HTML', hasValue: false },
+      { value: 'contains-html', label: '包含 HTML', hasValue: false },
+      {
+        value: 'is-sql',
+        label: '是否为 SQL',
+        hasValue: true,
+        valueOptional: true,
+        valuePlaceholder: '可选约束（JSON）',
+      },
+      {
+        value: 'contains-sql',
+        label: '包含 SQL',
+        hasValue: true,
+        valueOptional: true,
+        valuePlaceholder: '可选约束（JSON）',
+      },
+      { value: 'is-refusal', label: '是否拒答', hasValue: false },
+      {
+        value: 'finish-reason',
+        label: '结束原因',
+        hasValue: true,
+        valuePlaceholder: '如 stop / length / tool_calls',
+      },
+    ],
+  },
+  {
+    key: 'metric',
+    label: '指标 / 成本',
+    options: [
+      {
+        value: 'cost',
+        label: '单次成本阈值',
+        hasValue: false,
+        hasThreshold: true,
+        defaultThreshold: 0.001,
+        thresholdPlaceholder: '最大费用（USD）',
+      },
+      {
+        value: 'latency',
+        label: '耗时阈值',
+        hasValue: false,
+        hasThreshold: true,
+        defaultThreshold: 2000,
+        thresholdPlaceholder: '最大耗时（ms）',
+      },
+    ],
+  },
 ]
+
+/** Flat list for lookups / legacy consumers. Negation uses 是/非, so `not-*` is omitted. */
+export const assertOptions: AssertOption[] = assertCategories.flatMap((cat) => cat.options)
+
+const assertMetaByType = Object.fromEntries(assertOptions.map((opt) => [opt.value, opt]))
+
+export function getAssertMeta(type: string | undefined | null): AssertOption {
+  const key = (type || '').trim() || 'contains'
+  return (
+    assertMetaByType[key] || {
+      value: key,
+      label: key,
+      hasValue: true,
+      hasThreshold: false,
+      valuePlaceholder: '期望值',
+    }
+  )
+}
+
+export function assertShowsValue(type: string | undefined | null): boolean {
+  return getAssertMeta(type).hasValue !== false
+}
+
+export function assertShowsThreshold(type: string | undefined | null): boolean {
+  return Boolean(getAssertMeta(type).hasThreshold)
+}
+
+export function assertDefaultThreshold(type: string | undefined | null): number | undefined {
+  return getAssertMeta(type).defaultThreshold
+}
+
+export function assertNeedsGrader(type: string | undefined | null): boolean {
+  return Boolean(getAssertMeta(type).needsGrader)
+}
+
+/** TreeSelect data: category nodes are not selectable. */
+export const assertTreeData = assertCategories.map((cat) => ({
+  title: cat.label,
+  value: `__cat_${cat.key}`,
+  key: `__cat_${cat.key}`,
+  selectable: false,
+  children: cat.options.map((opt) => ({
+    title: opt.label,
+    value: opt.value,
+    key: opt.value,
+  })),
+}))

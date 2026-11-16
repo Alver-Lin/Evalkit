@@ -97,15 +97,13 @@ prompts:
   - 'Answer: {{question}}'
 
 providers:
-  - id: python:mock_provider.py
-    label: mock
+  - id: ""
+    label: ""
 
 tests:
   - vars:
       question: Hello
-    assert:
-      - type: contains
-        value: Hello
+    assert: []
 `
 }
 
@@ -151,7 +149,7 @@ function latestRun(configId: string) {
 }
 
 function resultLabel(run: EvalRunSummary) {
-  if (run.status === 'succeeded' && run.total_count) {
+  if ((run.status === 'succeeded' || run.status === 'failed') && run.total_count) {
     return `${run.pass_rate}% · ${run.pass_count}/${run.total_count}`
   }
   if (run.status === 'failed') return '失败'
@@ -483,12 +481,12 @@ onUnmounted(() => {
   height: var(--row-h);
 }
 
-.danger {
-  color: var(--ek-danger);
+.row-actions a.danger {
+  color: var(--ek-danger) !important;
 }
 
-.danger:hover {
-  color: #b91c1c;
+.row-actions a.danger:hover {
+  color: #b91c1c !important;
 }
 
 .mono {
