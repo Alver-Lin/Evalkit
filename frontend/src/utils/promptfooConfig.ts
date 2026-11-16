@@ -127,6 +127,50 @@ function emptyProvider(): VisualProvider {
   return { id: '', label: '', apiKey: '', apiHost: '', organization: '' }
 }
 
+export function providerHasId(provider: VisualProvider): boolean {
+  return Boolean(provider.id.trim())
+}
+
+export function providerHasExtraFields(provider: VisualProvider): boolean {
+  return Boolean(
+    provider.label.trim() ||
+      provider.apiKey.trim() ||
+      provider.apiHost.trim() ||
+      provider.organization.trim(),
+  )
+}
+
+export interface VisualProviderValidation {
+  ok: boolean
+  message?: string
+  /** 0-based index of the first problematic provider row. */
+  index?: number
+}
+
+/** Block silent drop of Key/Host when Provider ID is missing. */
+export function validateVisualProviders(providers: VisualProvider[]): VisualProviderValidation {
+  for (let i = 0; i < providers.length; i += 1) {
+    const provider = providers[i]
+    if (!providerHasId(provider) && providerHasExtraFields(provider)) {
+      return {
+        ok: false,
+        index: i,
+        message: `供应商 provider${i + 1} 缺少 Provider ID（必填）。可填 openai:chat:模型名、deepseek，或 https://... 自定义端点`,
+      }
+    }
+  }
+
+  if (!providers.some(providerHasId)) {
+    return {
+      ok: false,
+      index: 0,
+      message: '请至少填写一个供应商的 Provider ID（如 openai:gpt-4o-mini / deepseek / https://...）',
+    }
+  }
+
+  return { ok: true }
+}
+
 /** Map common aliases to IDs that promptfoo 0.125.x can resolve. */
 export function resolveProviderTarget(id: string, apiHost = ''): { id: string; apiHost: string } {
   const raw = id.trim()
@@ -364,12 +408,16 @@ export function yamlToVisual(yamlContent: string, fallbackDescription = ''): Vis
 
   const providers = asList(parsed.providers || parsed.targets).map(normalizeProvider)
 
+  const normalizedProviders = providers.length ? providers : [emptyProvider()]
+
   return {
     description: String(parsed.description || fallbackDescription || ''),
     prompts: prompts.length ? prompts : [''],
-    providers,
-    defaultAsserts: asList(defaultTest.assert).map((item) => normalizeAssert(item, providers)),
-    tests: asList(parsed.tests).map((item) => normalizeTest(item, providers)),
+    providers: normalizedProviders,
+    defaultAsserts: asList(defaultTest.assert).map((item) =>
+      normalizeAssert(item, normalizedProviders),
+    ),
+    tests: asList(parsed.tests).map((item) => normalizeTest(item, normalizedProviders)),
   }
 }
 

@@ -8,6 +8,8 @@ import type { ConfigMeta } from '@/types'
 import VisualConfigForm from '@/components/VisualConfigForm.vue'
 import {
   createEmptyVisualConfig,
+  providerHasId,
+  validateVisualProviders,
   visualToYaml,
   yamlToVisual,
   type VisualConfig,
@@ -37,8 +39,8 @@ const steps = [
 ]
 
 const matrixHint = computed(() => {
-  const p = visual.value.prompts.length || 0
-  const r = visual.value.providers.length || 0
+  const p = visual.value.prompts.filter((prompt) => prompt.trim()).length
+  const r = visual.value.providers.filter(providerHasId).length
   const t = visual.value.tests.length || 0
   return `${p} × ${r} × ${t}`
 })
@@ -55,6 +57,18 @@ function syncVisualToYaml() {
 function syncYamlToVisual() {
   visual.value = yamlToVisual(form.yaml_content, form.description)
   form.description = visual.value.description || form.description
+}
+
+function ensureProvidersValid(): boolean {
+  if (activeTab.value === 'yaml') {
+    syncYamlToVisual()
+  }
+  const result = validateVisualProviders(visual.value.providers)
+  if (result.ok) return true
+  activeTab.value = 'visual'
+  visualStep.value = 3
+  message.error(result.message || '供应商配置不完整')
+  return false
 }
 
 function onDescriptionChange() {
@@ -102,8 +116,9 @@ async function load() {
   }
 }
 
-async function save() {
+async function save(): Promise<boolean> {
   try {
+    if (!ensureProvidersValid()) return false
     if (activeTab.value === 'visual') {
       syncVisualToYaml()
     } else {
@@ -116,15 +131,18 @@ async function save() {
       yaml_content: form.yaml_content,
     })
     message.success('已保存')
+    return true
   } catch (err: any) {
     message.error(err?.response?.data?.detail || '保存失败')
+    return false
   }
 }
 
 async function runEval() {
   running.value = true
   try {
-    await save()
+    const saved = await save()
+    if (!saved) return
     const run = await api.createRun({
       config_id: String(route.params.id),
       max_concurrency: form.max_concurrency,

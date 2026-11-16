@@ -15,6 +15,8 @@ import {
 } from '@/constants/assertOptions'
 import {
   createVisualAssert,
+  providerHasExtraFields,
+  providerHasId,
   type VisualAssert,
   type VisualConfig,
 } from '@/utils/promptfooConfig'
@@ -143,6 +145,12 @@ function removeProvider(index: number) {
   model.value.providers.splice(index, 1)
   reindexGraderProviders(index)
   clampPage(providerPage, model.value.providers.length)
+}
+
+function providerMissingId(index: number): boolean {
+  const provider = model.value.providers[index]
+  if (!provider) return false
+  return !providerHasId(provider) && providerHasExtraFields(provider)
 }
 
 const graderProviderOptions = computed(() =>
@@ -490,7 +498,7 @@ function removeDefaultAssert(index: number) {
       <header class="panel-head">
         <div class="head-text">
           <h3>供应商</h3>
-          <p>模型 ID、密钥与 Host</p>
+          <p>必填 Provider ID；OpenAI 兼容填 openai:chat:模型名 + Host，自定义 HTTP 可直接填 https://...</p>
         </div>
         <div class="head-meta">
           <a-button type="dashed" class="add-btn" @click="addProvider">
@@ -504,6 +512,7 @@ function removeDefaultAssert(index: number) {
             v-for="index in pagedProviderIndexes"
             :key="`provider-${index}`"
             class="item"
+            :class="{ 'item-warn': providerMissingId(index) }"
           >
             <div class="item-head">
               <span class="badge mono">provider{{ index + 1 }}</span>
@@ -519,14 +528,24 @@ function removeDefaultAssert(index: number) {
             </div>
             <div class="provider-grid" autocomplete="off">
               <div class="field span-main">
-                <label>Provider ID</label>
+                <label>
+                  Provider ID
+                  <span class="req" aria-hidden="true">*</span>
+                </label>
                 <a-input
                   v-model:value="model.providers[index].id"
                   class="mono"
                   name="evalkit-provider-id"
                   autocomplete="off"
-                  placeholder="openai:gpt-4o-mini / deepseek / openai:chat:deepseek-chat"
+                  :status="providerMissingId(index) ? 'error' : undefined"
+                  placeholder="openai:chat:模型名 / deepseek / https://..."
                 />
+                <p v-if="providerMissingId(index)" class="field-hint is-error">
+                  已填写密钥或 Host，但缺少 Provider ID，保存会被拒绝
+                </p>
+                <p v-else class="field-hint">
+                  OpenAI 兼容：openai:chat:模型名；自定义 HTTP：完整 URL
+                </p>
               </div>
               <div class="field span-side">
                 <label>Label</label>
@@ -557,7 +576,7 @@ function removeDefaultAssert(index: number) {
                   class="mono"
                   name="evalkit-provider-api-host"
                   autocomplete="off"
-                  placeholder="DeepSeek 可留空，默认 https://api.deepseek.com/v1"
+                  placeholder="兼容接口填 https://host/v1；DeepSeek 可留空"
                 />
               </div>
               <div class="field span-full">
@@ -1166,6 +1185,27 @@ function removeDefaultAssert(index: number) {
   font-size: 12px;
   line-height: 16px;
   color: var(--ek-muted);
+}
+
+.field .req {
+  margin-left: 2px;
+  color: #b42318;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ek-muted);
+}
+
+.field-hint.is-error {
+  color: #b42318;
+}
+
+.item-warn {
+  border-color: rgba(180, 35, 24, 0.35);
+  background: rgba(180, 35, 24, 0.03);
 }
 
 .prompt-editor,
