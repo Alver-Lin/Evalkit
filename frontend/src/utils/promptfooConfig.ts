@@ -1416,13 +1416,7 @@ export function createEmptyVisualConfig(description = ''): VisualConfig {
     prompts: [''],
     providers: [emptyProvider()],
     defaultAsserts: [],
-    tests: [
-      {
-        description: '',
-        varsText: '{\n  "question": ""\n}',
-        asserts: [],
-      },
-    ],
+    tests: [],
   }
 }
 
@@ -1459,8 +1453,16 @@ export function yamlToVisual(
 
   const normalizedProviders = providers.length ? providers : [emptyProvider()]
 
+  const yamlDescription = String(parsed.description ?? '').trim()
+  const fallback = String(fallbackDescription || '').trim()
+  // Prefer real text from either side; legacy scaffold used "My eval" as filler.
+  let description = yamlDescription || fallback
+  if (description === 'My eval') {
+    description = fallback && fallback !== 'My eval' ? fallback : ''
+  }
+
   return {
-    description: String(parsed.description || fallbackDescription || ''),
+    description,
     prompts: prompts.length ? prompts : [''],
     providers: normalizedProviders,
     defaultAsserts: asList(defaultTest.assert).map((item) => normalizeAssert(item, graders)),

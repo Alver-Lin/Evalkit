@@ -63,10 +63,6 @@ const props = defineProps<{
 
 const varSyntax = '{{variable}}'
 const promptVarSyntax = '{{prompt}}'
-const httpPromptPlaceholder = `在此填写请求 Body JSON，例如：
-{
-  "message": "{{message}}"
-}`
 const hasHttpProvider = computed(() =>
   model.value.providers.some((provider) => inferProviderKind(provider) === 'http'),
 )
@@ -770,7 +766,7 @@ function removeDefaultAssert(index: number) {
               v-model:value="model.prompts[index]"
               :rows="hasHttpProvider ? 10 : 5"
               class="prompt-editor mono"
-              :placeholder="hasHttpProvider ? httpPromptPlaceholder : '例如：Answer: ' + varSyntax"
+              placeholder="请录入提示词或者请求体"
             />
           </div>
         </div>
@@ -1385,6 +1381,7 @@ function removeDefaultAssert(index: number) {
               size="middle"
               row-key="index"
               :pagination="false"
+              :locale="{ emptyText: '暂无测试用例' }"
               :data-source="pagedTestIndexes.map((index) => ({ index }))"
             >
               <a-table-column title="ID" :width="100">
@@ -1468,31 +1465,26 @@ function removeDefaultAssert(index: number) {
         root-class-name="test-detail-drawer"
       >
         <div v-if="detailTest" class="detail-form">
-          <section class="ek-section">
-            <header class="ek-section-head">
-              <div>
-                <h4>测试项</h4>
-              </div>
-            </header>
-            <a-input
+          <section class="detail-block">
+            <label class="detail-label" for="detail-description">测试项</label>
+            <a-textarea
+              id="detail-description"
               v-model:value="detailTest.description"
+              class="detail-textarea"
+              :auto-size="{ minRows: 2, maxRows: 4 }"
               placeholder="例如：辖区内已婚人员数量"
               allow-clear
             />
           </section>
 
-          <section class="ek-section">
-            <header class="ek-section-head">
-              <div>
-                <h4>变量</h4>
-              </div>
-            </header>
-            <div v-if="!promptVarNames.length" class="ek-empty">
+          <section class="detail-block">
+            <div class="detail-label">变量</div>
+            <div v-if="!promptVarNames.length" class="detail-empty">
               提示词中尚未定义变量，请先使用 {{ varSyntax }}
             </div>
-            <div v-else class="ek-var-list">
-              <div v-for="name in promptVarNames" :key="name" class="ek-var-row">
-                <span class="ek-var-key">{{ name }}</span>
+            <div v-else class="detail-var-list">
+              <div v-for="name in promptVarNames" :key="name" class="detail-var-row">
+                <code class="detail-var-key" :title="name">{{ name }}</code>
                 <a-input
                   :value="getVarValue(detailIndex, name)"
                   :placeholder="`输入 ${name}`"
@@ -1503,23 +1495,22 @@ function removeDefaultAssert(index: number) {
             </div>
           </section>
 
-          <section class="ek-section">
-            <header class="ek-section-head">
-              <div>
-                <h4>断言</h4>
-              </div>
+          <section class="detail-block">
+            <div class="detail-label-row">
+              <div class="detail-label">断言</div>
               <a-button
                 v-if="detailTest.asserts.length"
-                type="dashed"
+                type="link"
                 size="small"
+                class="detail-add-link"
                 @click="addAssert(detailIndex)"
               >
-                <PlusOutlined /> 添加断言
+                <PlusOutlined /> 添加
               </a-button>
-            </header>
-            <div v-if="!detailTest.asserts.length" class="ek-empty is-action">
+            </div>
+            <div v-if="!detailTest.asserts.length" class="detail-empty is-action">
               <span>暂无断言</span>
-              <a-button type="dashed" size="small" @click="addAssert(detailIndex)">
+              <a-button type="link" size="small" class="detail-add-link" @click="addAssert(detailIndex)">
                 <PlusOutlined /> 添加断言
               </a-button>
             </div>
@@ -1852,7 +1843,99 @@ function removeDefaultAssert(index: number) {
 .detail-form {
   display: flex;
   flex-direction: column;
-  gap: var(--ui-gap, 16px);
+  gap: 0;
+}
+
+.detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-block: 20px;
+}
+
+.detail-block:first-child {
+  padding-block-start: 4px;
+}
+
+.detail-block:last-child {
+  padding-block-end: 0;
+}
+
+.detail-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.detail-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ek-ink);
+}
+
+.detail-textarea :deep(textarea) {
+  resize: none;
+  line-height: 1.55;
+}
+
+.detail-var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-var-row {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.detail-var-key {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-code, var(--ek-mono, ui-monospace, monospace));
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ek-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-empty {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  color: var(--ek-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.detail-empty.is-action {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px dashed var(--ui-border-strong, var(--ek-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ek-raised) 55%, transparent);
+}
+
+.detail-add-link {
+  padding-inline: 0 !important;
+  height: auto !important;
+  color: var(--ek-accent-ink) !important;
+}
+
+.detail-add-link:hover {
+  color: var(--ek-accent) !important;
 }
 
 .assert-label-row {
@@ -2835,12 +2918,17 @@ function removeDefaultAssert(index: number) {
 
 <style>
 .test-detail-drawer .ant-drawer-body {
-  padding-block: var(--space-4, 16px) var(--space-6, 24px);
-  padding-inline: var(--space-5, 20px);
+  padding-block: var(--space-3, 12px) var(--space-6, 24px);
+  padding-inline: var(--space-6, 24px);
   background: var(--surface-raised, var(--ek-surface, #fff));
 }
 
 .test-detail-drawer .ant-drawer-header {
   border-block-end: 1px solid var(--ui-border, var(--ek-border));
+}
+
+.test-detail-drawer .ant-drawer-title {
+  font-size: 15px;
+  font-weight: 600;
 }
 </style>

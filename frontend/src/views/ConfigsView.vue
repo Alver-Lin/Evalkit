@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import { api } from '@/api/client'
 import StatusTag from '@/components/StatusTag.vue'
 import type { ConfigMeta, EvalRunSummary } from '@/types'
+import { visualToYaml, yamlToVisual } from '@/utils/promptfooConfig'
 
 const router = useRouter()
 const loading = ref(false)
@@ -48,7 +49,7 @@ const columns = [
   { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
   { title: '运行结果', key: 'result', width: 200 },
   { title: '更新时间', key: 'updated_at', width: 148 },
-  { title: '操作', key: 'actions', width: 108 },
+  { title: '操作', key: 'actions', width: 148 },
 ]
 
 const latestRunByConfig = computed(() => {
@@ -91,19 +92,16 @@ function resetFilters() {
 
 function buildDefaultYaml(description: string) {
   const escaped = description.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-  return `description: "${escaped || 'My eval'}"
+  return `description: "${escaped}"
 
 prompts:
-  - 'Answer: {{question}}'
+  - ""
 
 providers:
   - id: ""
     label: ""
 
-tests:
-  - vars:
-      question: Hello
-    assert: []
+tests: []
 `
 }
 
@@ -177,6 +175,35 @@ async function createConfig() {
     router.push(`/configs/${created.id}`)
   } catch (err: any) {
     message.error(err?.response?.data?.detail || '创建失败')
+  }
+}
+
+function copyName(name: string) {
+  const base = name.trim() || '未命名任务'
+  const suffix = ' (副本)'
+  const maxLen = 120
+  if (base.length + suffix.length <= maxLen) return `${base}${suffix}`
+  return `${base.slice(0, Math.max(1, maxLen - suffix.length))}${suffix}`
+}
+
+async function copyConfig(record: ConfigMeta) {
+  try {
+    const source = await api.getConfig(record.id)
+    const visual = yamlToVisual(source.yaml_content, source.description || '')
+    const description = (source.description || '').trim() || visual.description || ''
+    visual.description = description
+    const created = await api.createConfig({
+      name: copyName(source.name),
+      description,
+      yaml_content: visualToYaml(visual, source.yaml_content),
+      max_concurrency: source.max_concurrency ?? 2,
+      cache: Boolean(source.cache),
+    })
+    message.success('已复制')
+    await load()
+    router.push(`/configs/${created.id}`)
+  } catch (err: any) {
+    message.error(err?.response?.data?.detail || '复制失败')
   }
 }
 
@@ -281,6 +308,7 @@ onUnmounted(() => {
           <template v-else-if="column.key === 'actions'">
             <div class="row-actions">
               <router-link :to="`/configs/${record.id}`">编辑</router-link>
+              <a href="#" @click.prevent="copyConfig(record)">复制</a>
               <a class="danger" href="#" @click.prevent="confirmDelete(record)">删除</a>
             </div>
           </template>
@@ -297,10 +325,10 @@ onUnmounted(() => {
     >
       <a-form layout="vertical">
         <a-form-item label="任务名称" required>
-          <a-input v-model:value="form.name" placeholder="例如：翻译质量评测" />
+          <a-input v-model:value="form.name" placeholder="请录入任务名称" />
         </a-form-item>
         <a-form-item label="描述">
-          <a-input v-model:value="form.description" placeholder="可选说明" />
+          <a-input v-model:value="form.description" placeholder="请录入描述内容" />
         </a-form-item>
       </a-form>
     </a-modal>

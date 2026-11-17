@@ -114,18 +114,16 @@ async function load() {
     await loadGraders()
     config.value = await api.getConfig(String(route.params.id))
     form.name = config.value.name
-    form.description = config.value.description
+    form.description = (config.value.description || '').trim()
     form.yaml_content = config.value.yaml_content
     form.max_concurrency = config.value.max_concurrency ?? 2
     form.cache = Boolean(config.value.cache)
     visual.value = yamlToVisual(form.yaml_content, form.description, graders.value)
     restoreProviderProbes(String(route.params.id), visual.value.providers)
-    if (!form.description && visual.value.description) {
-      form.description = visual.value.description
-    } else {
-      visual.value.description = form.description
-      form.yaml_content = visualToYaml(visual.value, form.yaml_content, graders.value)
-    }
+    const resolvedDescription = form.description || visual.value.description || ''
+    form.description = resolvedDescription === 'My eval' ? '' : resolvedDescription
+    visual.value.description = form.description
+    form.yaml_content = visualToYaml(visual.value, form.yaml_content, graders.value)
     activeTab.value = 'visual'
     visualStep.value = 1
   } catch {
@@ -230,14 +228,14 @@ onMounted(load)
                       <div class="meta-grid">
                         <div class="field">
                           <label>任务名称</label>
-                          <a-input v-model:value="form.name" placeholder="例如：翻译质量评测" />
+                          <a-input v-model:value="form.name" placeholder="请录入任务名称" />
                         </div>
                         <div class="field">
                           <label>描述</label>
                           <a-textarea
                             v-model:value="form.description"
                             :rows="4"
-                            placeholder="可选说明"
+                            placeholder="请录入描述内容"
                             @update:value="onDescriptionChange"
                           />
                         </div>
