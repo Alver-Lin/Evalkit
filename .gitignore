@@ -12,6 +12,7 @@ frontend/dist/
 backend/data/
 data/runs/
 data/reports/
+data/graders/
 tools/node_modules/
 *.log
 .DS_Store

@@ -25,7 +25,8 @@ EvalKit 是面向评测同学的 **Promptfoo 可视化工作台**：配置 Promp
    - [6.2 供应商格式要求](#62-供应商格式要求)
    - [6.3 添加断言](#63-添加断言)
    - [6.4 测评报告](#64-测评报告)
-   - [6.5 跑通 Demo](#65-跑通-demo无需-key)
+   - [6.5 模型评测配置](#65-模型评测配置)
+   - [6.6 跑通示例](#66-跑通示例需-api-key)
 7. [数据落盘约定](#7-数据落盘约定)
 8. [HTTP API](#8-http-api)
 9. [前端模块说明](#9-前端模块说明)
@@ -40,6 +41,7 @@ EvalKit 是面向评测同学的 **Promptfoo 可视化工作台**：配置 Promp
 | 测评任务 | 创建 / 编辑 / 删除 promptfoo 配置（可视化表单或 YAML） |
 | 一键运行 | 异步执行 `promptfoo eval`，支持并发与缓存开关 |
 | 测评报告 | 列表筛选、详情页矩阵对比、JSON / HTML / CSV 下载 |
+| 模型评测配置 | 管理 llm-rubric / similar 等断言用的评分模型；断言下拉只从此处选择 |
 | 示例任务 | 启动时自动种子 `OpenAI Sample`（需 `OPENAI_API_KEY`） |
 
 技术栈：
@@ -58,6 +60,7 @@ EvalKit 是面向评测同学的 **Promptfoo 可视化工作台**：配置 Promp
    ▼
 FastAPI
    ├─ configs   配置 CRUD（落盘 data/configs）
+   ├─ graders   评分模型 CRUD（落盘 data/graders）
    ├─ runs      创建运行 / 查状态 / 报告
    └─ dashboard 统计（可选）
    │
@@ -212,8 +215,9 @@ npm run build          # 输出 frontend/dist
 | 超时（秒） | **必填** | 默认 `60` → `config.timeout` |
 | URL | **必填** | 完整 `https://...`，作为 Provider `id` |
 | Header | 可选 | 键值对 → `config.headers`；Value 支持模板变量 |
+| 响应提取 transformResponse | 建议填 | → `config.transformResponse`；默认 SSE 拼接 `data:` 行 |
 
-请求 Body 写在 **提示词** 步骤（JSON + `{{变量}}`），供应商侧固定 `body: '{{prompt}}'`。测试用例用 vars 填变量（如 `message`）。默认 SSE `transformResponse` 仅在运行时注入，不写入用户 YAML。
+请求 Body 写在 **提示词** 步骤（JSON + `{{变量}}`），供应商侧固定 `body: '{{prompt}}'`。测试用例用 vars 填变量（如 `message`）。
 
 示例（可视化保存后的 YAML 形态）：
 
@@ -237,6 +241,18 @@ providers:
       headers:
         Content-Type: application/json
       body: '{{prompt}}'
+      transformResponse: |
+        (json, text) => {
+          const chunks = [];
+          for (const line of String(text || '').split('\n')) {
+            const t = line.trim();
+            if (!t.startsWith('data:')) continue;
+            const raw = t.replace(/^data:\s?/, '');
+            if (!raw || raw === '[DONE]') continue;
+            chunks.push(raw);
+          }
+          return chunks.join('\n') || text;
+        }
 
 tests:
   - vars:
@@ -329,14 +345,14 @@ def call_api(prompt: str, options: dict, context: dict):
 
 #### 断言速查（按类）
 
-YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）把 `type` 换成对应名字即可。模型评分类如需指定 grader，可再加 `provider`。
+YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）把 `type` 换成对应名字即可。可视化里「语义相似 / 模型评分标准」的评分模型下拉 **只从「模型评测配置」选择**；保存时会把所选评分模型内嵌为断言的 `provider`。
 
 ##### 模型评分
 
 | 类型 | 中文名 | 适用场景 | YAML 示例 |
 |------|--------|----------|-----------|
-| `similar` / `similar:cosine` / `similar:dot` / `similar:euclidean` | 语义相似 | 语义接近即可，不要求原文一致 | <pre>- type: similar<br>  value: 法国的首都是巴黎<br>  threshold: 0.8</pre> |
-| `llm-rubric` | 模型评分标准 | 用自然语言标准让 LLM Judge 打分；运行时自动使用中文评分提示（不写入用户 YAML），判定说明（reason）为简体中文 | <pre>- type: llm-rubric<br>  value: 回答准确、有帮助，且不道歉推诿<br>  threshold: 0.7</pre> |
+| `similar` / `similar:cosine` / `similar:dot` / `similar:euclidean` | 语义相似 | 语义接近即可，不要求原文一致 | <pre>- type: similar<br>  value: 法国的首都是巴黎<br>  threshold: 0.8<br>  provider: …</pre> |
+| `llm-rubric` | 模型评分标准 | 用自然语言标准让 LLM Judge 打分；运行时自动使用中文评分提示（不写入用户 YAML），判定说明（reason）为简体中文 | <pre>- type: llm-rubric<br>  value: 回答准确、有帮助，且不道歉推诿<br>  threshold: 0.7<br>  provider: …</pre> |
 | `factuality` / `model-graded-factuality` | 事实性 | 对照参考事实句是否一致 | <pre>- type: factuality<br>  value: 萨克拉门托是加利福尼亚州的首府</pre> |
 | `model-graded-closedqa` | 封闭问答评分 | 是否满足某条要求（如不道歉） | <pre>- type: model-graded-closedqa<br>  value: 回答不道歉、直接给出结论</pre> |
 | `answer-relevance` | 答案相关性 | 输出是否答到原问题上 | <pre>- type: answer-relevance<br>  threshold: 0.7</pre> |
@@ -430,7 +446,20 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 
 进行中的任务会自动轮询；后端重启会把未完成的 pending/running 标为 failed。
 
-### 6.5 跑通示例（需 API Key）
+### 6.5 模型评测配置
+
+路径：`/graders`
+
+用于管理 **断言评分模型**（`llm-rubric` / `similar` 等），与任务内「供应商」（被测模型）分离：
+
+1. 新建评分模型：可选 **自定义 HTTP** 或 **OpenAI 兼容**
+2. 填写名称、Provider ID / URL、密钥与 Host 等，可「测试连通」
+3. 在测评任务的断言里，评分模型下拉 **只显示此处已配置的模型**
+4. 保存任务时，所选评分模型会内嵌写入断言的 `provider`（promptfoo 运行不依赖全局文件）
+
+旧任务 YAML 中已内嵌的 `provider` 仍可直接跑；打开可视化时若匹配不到评分库，需重新选择。
+
+### 6.6 跑通示例（需 API Key）
 
 1. 设置环境变量，例如 `export OPENAI_API_KEY=sk-...`
 2. 打开「测评任务」→ **OpenAI Sample**（或新建任务并填写真实供应商）
@@ -447,6 +476,12 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 | `promptfooconfig.yaml` | 实际评测配置 |
 | `*.py` 等 | 附属资源（如自定义 Python Provider） |
 
+### 评分模型 `data/graders/{grader_id}/`
+
+| 文件 | 说明 |
+|------|------|
+| `meta.json` | 评分模型字段（kind、name、provider_id、密钥等） |
+
 ### 运行 `data/runs/{run_id}/`
 
 | 文件 | 说明 |
@@ -457,7 +492,7 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 | `report.html` | promptfoo HTML 报告 |
 | `stdout.log` / `stderr.log` | 进程日志 |
 
-`data/configs`、`data/runs`、`data/reports` 默认在 `.gitignore` 中，勿提交密钥。
+`data/configs`、`data/graders`、`data/runs`、`data/reports` 默认在 `.gitignore` 中，勿提交密钥。
 
 ---
 
@@ -474,6 +509,11 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 | GET | `/configs/{id}` | 详情 |
 | PUT | `/configs/{id}` | 更新 |
 | DELETE | `/configs/{id}` | 删除 |
+| GET | `/graders` | 评分模型列表 |
+| POST | `/graders` | 创建评分模型 |
+| GET | `/graders/{id}` | 评分模型详情 |
+| PUT | `/graders/{id}` | 更新评分模型 |
+| DELETE | `/graders/{id}` | 删除评分模型 |
 | GET | `/runs` | 运行列表 |
 | POST | `/runs` | 启动 `{ config_id, max_concurrency?, cache?, description? }` |
 | GET | `/runs/{id}` | 详情（含 stdout/stderr、结果引用） |
@@ -490,11 +530,12 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 
 | 路径 | 职责 |
 |------|------|
-| `layouts/AppLayout.vue` | 侧栏导航（测评任务 / 测评报告） |
+| `layouts/AppLayout.vue` | 侧栏导航（测评任务 / 测评报告 / 模型评测配置） |
 | `views/ConfigsView.vue` | 任务列表、筛选、新建 |
 | `views/ConfigDetailView.vue` | 分步可视化 / YAML、保存、运行 |
 | `views/RunsView.vue` | 报告列表与筛选 |
 | `views/ReportView.vue` | 报告详情、图表、矩阵筛选 |
+| `views/GradersView.vue` | 评分模型列表与编辑 |
 | `components/VisualConfigForm.vue` | 可视化表单 |
 | `utils/promptfooConfig.ts` | YAML ↔ VisualConfig；DeepSeek 等别名解析 |
 | `api/client.ts` | 统一 API 客户端 |
@@ -507,6 +548,7 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 | `/configs/:id` | 任务详情 |
 | `/runs` | 测评报告列表 |
 | `/runs/:id` | 报告详情 |
+| `/graders` | 模型评测配置 |
 
 开发时改 UI 后热更新即可；涉及 API 契约时同步改 `frontend/src/types/index.ts` 与后端 `schemas.py`。
 
@@ -516,7 +558,7 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 
 | 模块 | 职责 |
 |------|------|
-| `services/store.py` | 配置 / 运行的文件存储与 YAML 校验 |
+| `services/store.py` | 配置 / 评分模型 / 运行的文件存储与 YAML 校验 |
 | `services/promptfoo_runner.py` | 异步拉起 promptfoo、写日志、汇总状态 |
 | `services/report_builder.py` | 将 results.json 转成前端报告视图与 CSV |
 | `services/seed.py` | 首次启动写入示例配置与 samples |

@@ -85,6 +85,57 @@ function inputPreview(vars: Record<string, unknown>) {
   return entries.map(([k, v]) => `${k}: ${v ?? '—'}`).join('\n')
 }
 
+/** Expand nested JSON strings so drawer content is readable. */
+function reviveJsonValue(value: unknown, depth = 0): unknown {
+  if (depth > 4) return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    ) {
+      try {
+        return reviveJsonValue(JSON.parse(trimmed), depth + 1)
+      } catch {
+        return value
+      }
+    }
+    return value
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => reviveJsonValue(item, depth + 1))
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, reviveJsonValue(v, depth + 1)]),
+    )
+  }
+  return value
+}
+
+function formatDisplayText(value: unknown): string {
+  if (value == null || value === '') return '—'
+  const revived = reviveJsonValue(value)
+  if (typeof revived === 'string') return revived
+  try {
+    return JSON.stringify(revived, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function detailVarEntries(vars: Record<string, unknown> | null | undefined) {
+  return Object.entries(vars || {}).map(([key, value]) => ({
+    key,
+    text: formatDisplayText(value),
+  }))
+}
+
+const detailVars = computed(() => detailVarEntries(detailRow.value?.vars))
+const detailOutputText = computed(() =>
+  formatDisplayText(detailRow.value?.output || detailRow.value?.error || '—'),
+)
+
 function rowTone(row: ReportRow) {
   if (row.error) return 'error'
   if (row.success) return 'pass'
@@ -820,9 +871,10 @@ onUnmounted(() => {
 
     <a-drawer
       v-model:open="detailOpen"
-      :width="480"
+      :width="520"
       :title="detailRow ? `结果详情 #${detailRow.id + 1}` : '结果详情'"
       destroy-on-close
+      root-class-name="report-detail-drawer"
     >
       <div v-if="detailRow" class="drawer-body">
         <div class="field">
@@ -831,19 +883,25 @@ onUnmounted(() => {
         </div>
         <div class="field">
           <label>测试项</label>
-          <div>{{ detailRow.description || '—' }}</div>
+          <div class="field-text">{{ detailRow.description || '—' }}</div>
         </div>
         <div class="field">
           <label>Prompt</label>
-          <div class="mono">{{ detailRow.prompt }}</div>
+          <pre class="block mono">{{ detailRow.prompt || '—' }}</pre>
         </div>
         <div class="field">
           <label>Provider</label>
-          <div class="mono">{{ detailRow.provider }}</div>
+          <div class="field-text mono">{{ detailRow.provider }}</div>
         </div>
         <div class="field">
           <label>变量</label>
-          <pre class="block mono">{{ JSON.stringify(detailRow.vars || {}, null, 2) }}</pre>
+          <div v-if="detailVars.length" class="var-list">
+            <div v-for="item in detailVars" :key="item.key" class="var-item">
+              <div class="var-key mono">{{ item.key }}</div>
+              <pre class="block mono var-value">{{ item.text }}</pre>
+            </div>
+          </div>
+          <div v-else class="muted">—</div>
         </div>
         <div v-if="detailRow.thinking" class="field">
           <label>Thinking</label>
@@ -851,7 +909,7 @@ onUnmounted(() => {
         </div>
         <div class="field">
           <label>输出</label>
-          <pre class="block">{{ detailRow.output || detailRow.error || '—' }}</pre>
+          <pre class="block mono">{{ detailOutputText }}</pre>
         </div>
         <div class="field meta-inline">
           <span v-if="latencyText(detailRow.latencyMs)" class="mono muted">{{ latencyText(detailRow.latencyMs) }}</span>
@@ -862,7 +920,7 @@ onUnmounted(() => {
           <div v-if="detailRow.assertions?.length" class="assert-list">
             <div v-for="(a, idx) in detailRow.assertions" :key="idx" class="assert-line">
               <span class="assert-type" :class="a.pass ? 'ok' : 'fail'">{{ a.type || 'assert' }}</span>
-              <span>{{ a.reason || (a.pass ? '通过' : '未通过') }}</span>
+              <span class="assert-reason">{{ a.reason || (a.pass ? '通过' : '未通过') }}</span>
             </div>
           </div>
           <div v-else class="muted">{{ detailRow.reason || '暂无断言详情' }}</div>
@@ -1259,17 +1317,30 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .field label {
   font-size: 12px;
   color: var(--ek-muted);
+}
+
+.field-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ek-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .block {
@@ -1279,15 +1350,44 @@ onUnmounted(() => {
   background: var(--ek-raised);
   border: 1px solid var(--ek-border);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
   font-size: 12px;
   line-height: 1.5;
-  max-height: 220px;
+  max-height: 280px;
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
+  box-sizing: border-box;
+}
+
+.var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.var-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.var-key {
+  font-size: 11px;
+  color: var(--ek-secondary);
+  line-height: 1.4;
+}
+
+.var-value {
+  max-height: 200px;
 }
 
 .meta-inline {
   flex-direction: row;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -1295,6 +1395,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .assert-line {
@@ -1303,6 +1404,13 @@ onUnmounted(() => {
   display: flex;
   gap: 8px;
   align-items: baseline;
+  min-width: 0;
+}
+
+.assert-reason {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .assert-type {
@@ -1363,5 +1471,14 @@ onUnmounted(() => {
 .multi-more {
   font-size: 12px;
   color: var(--ek-secondary, #4b5565);
+}
+
+.report-detail-drawer .ant-drawer-body {
+  overflow-x: hidden;
+}
+
+.report-detail-drawer .ant-drawer-body,
+.report-detail-drawer .ant-drawer-header {
+  max-width: 100%;
 }
 </style>

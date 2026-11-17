@@ -41,7 +41,11 @@ class Settings(BaseSettings):
     def reports_dir(self) -> Path:
         return self.data_dir / "reports"
 
+    @property
+    def graders_dir(self) -> Path:
+        return self.data_dir / "graders"
+
 
 settings = Settings()
-for path in (settings.configs_dir, settings.runs_dir, settings.reports_dir):
+for path in (settings.configs_dir, settings.runs_dir, settings.reports_dir, settings.graders_dir):
     path.mkdir(parents=True, exist_ok=True)

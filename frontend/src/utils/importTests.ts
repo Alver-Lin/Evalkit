@@ -1,9 +1,9 @@
 import { dump, load } from 'js-yaml'
+import type { GraderMeta } from '@/types'
 import {
   normalizeAssert,
   parseAssertYaml,
   type VisualAssert,
-  type VisualProvider,
   type VisualTest,
 } from '@/utils/promptfooConfig'
 
@@ -92,7 +92,7 @@ function pickVars(row: Record<string, unknown>): Record<string, string> {
  */
 function pickAsserts(
   row: Record<string, unknown>,
-  providers: VisualProvider[],
+  graders: GraderMeta[],
   source: 'csv' | 'yaml' | 'json',
   rowIndex: number,
 ): VisualAssert[] {
@@ -103,7 +103,7 @@ function pickAsserts(
 
     if (typeof value === 'string') {
       try {
-        return parseAssertYaml(value, providers)
+        return parseAssertYaml(value, graders)
       } catch (error) {
         const reason = error instanceof Error ? error.message : '断言解析失败'
         throw new Error(`第 ${rowIndex} 条用例断言无效：${reason}`)
@@ -117,14 +117,14 @@ function pickAsserts(
     }
 
     // Native YAML structured assert / assert list
-    return asList(value).map((item) => normalizeAssert(item, providers))
+    return asList(value).map((item) => normalizeAssert(item, graders))
   }
   return []
 }
 
 function normalizeDraft(
   row: unknown,
-  providers: VisualProvider[],
+  graders: GraderMeta[],
   source: 'csv' | 'yaml' | 'json',
   rowIndex: number,
 ): ImportedTestDraft | null {
@@ -137,7 +137,7 @@ function normalizeDraft(
   if (!record) return null
   const description = pickDescription(record)
   const vars = pickVars(record)
-  const asserts = pickAsserts(record, providers, source, rowIndex)
+  const asserts = pickAsserts(record, graders, source, rowIndex)
   if (!description && !Object.values(vars).some((v) => v.trim()) && !asserts.length) return null
   return { description, vars, asserts }
 }
@@ -198,7 +198,7 @@ function parseCsvRows(text: string): string[][] {
   return rows
 }
 
-function parseCsv(text: string, providers: VisualProvider[]): ImportedTestDraft[] {
+function parseCsv(text: string, graders: GraderMeta[]): ImportedTestDraft[] {
   const rows = parseCsvRows(text)
   if (rows.length < 2) return []
 
@@ -216,7 +216,7 @@ function parseCsv(text: string, providers: VisualProvider[]): ImportedTestDraft[
       if (!header) return
       row[header] = cells[index] ?? ''
     })
-    const draft = normalizeDraft(row, providers, 'csv', drafts.length + 1)
+    const draft = normalizeDraft(row, graders, 'csv', drafts.length + 1)
     if (draft) drafts.push(draft)
   }
   return drafts
@@ -224,7 +224,7 @@ function parseCsv(text: string, providers: VisualProvider[]): ImportedTestDraft[
 
 function parseJsonOrYaml(
   text: string,
-  providers: VisualProvider[],
+  graders: GraderMeta[],
   source: 'yaml' | 'json',
 ): ImportedTestDraft[] {
   let data: unknown
@@ -248,7 +248,7 @@ function parseJsonOrYaml(
 
   const drafts: ImportedTestDraft[] = []
   rows.forEach((row, index) => {
-    const draft = normalizeDraft(row, providers, source, index + 1)
+    const draft = normalizeDraft(row, graders, source, index + 1)
     if (draft) drafts.push(draft)
   })
   return drafts
@@ -257,7 +257,7 @@ function parseJsonOrYaml(
 export function parseImportedTests(
   text: string,
   filename = '',
-  providers: VisualProvider[] = [],
+  graders: GraderMeta[] = [],
 ): ImportedTestDraft[] {
   const trimmed = text.trim()
   if (!trimmed) throw new Error('文件为空')
@@ -266,17 +266,17 @@ export function parseImportedTests(
   let drafts: ImportedTestDraft[]
 
   if (lower.endsWith('.csv')) {
-    drafts = parseCsv(trimmed, providers)
+    drafts = parseCsv(trimmed, graders)
   } else if (lower.endsWith('.yaml') || lower.endsWith('.yml')) {
-    drafts = parseJsonOrYaml(trimmed, providers, 'yaml')
+    drafts = parseJsonOrYaml(trimmed, graders, 'yaml')
   } else if (lower.endsWith('.json')) {
-    drafts = parseJsonOrYaml(trimmed, providers, 'json')
+    drafts = parseJsonOrYaml(trimmed, graders, 'json')
   } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    drafts = parseJsonOrYaml(trimmed, providers, 'json')
+    drafts = parseJsonOrYaml(trimmed, graders, 'json')
   } else if (trimmed.startsWith('tests:') || trimmed.includes('\nassert:')) {
-    drafts = parseJsonOrYaml(trimmed, providers, 'yaml')
+    drafts = parseJsonOrYaml(trimmed, graders, 'yaml')
   } else {
-    drafts = parseCsv(trimmed, providers)
+    drafts = parseCsv(trimmed, graders)
   }
 
   if (!drafts.length) throw new Error('未解析到有效用例')

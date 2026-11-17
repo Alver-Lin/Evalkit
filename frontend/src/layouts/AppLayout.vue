@@ -7,6 +7,7 @@ const router = useRouter()
 
 const selectedKeys = computed(() => {
   if (route.path.startsWith('/runs')) return ['runs']
+  if (route.path.startsWith('/graders')) return ['graders']
   return ['configs']
 })
 
@@ -74,6 +75,22 @@ function go(key: string) {
             </svg>
           </span>
           <span>测评报告</span>
+        </a-menu-item>
+        <a-menu-item key="graders">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none">
+              <path
+                d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+              <rect x="5" y="3.15" width="3.1" height="2.7" rx="1.35" stroke="currentColor" stroke-width="1.4" />
+              <rect x="8.5" y="6.65" width="3.1" height="2.7" rx="1.35" stroke="currentColor" stroke-width="1.4" />
+              <rect x="4.2" y="10.15" width="3.1" height="2.7" rx="1.35" stroke="currentColor" stroke-width="1.4" />
+            </svg>
+          </span>
+          <span>模型评测配置</span>
         </a-menu-item>
       </a-menu>
     </a-layout-sider>

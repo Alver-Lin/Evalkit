@@ -4,6 +4,8 @@ import type {
   DashboardStats,
   EvalRunDetail,
   EvalRunSummary,
+  GraderMeta,
+  GraderPayload,
   ProviderProbeRequest,
   ProviderProbeResponse,
   ReportView,
@@ -37,6 +39,13 @@ export const api = {
   getReport: (id: string) => http.get<ReportView>(`/runs/${id}/report`).then((r) => r.data),
   probeProvider: (payload: ProviderProbeRequest) =>
     http.post<ProviderProbeResponse>('/providers/probe', payload).then((r) => r.data),
+  listGraders: () => http.get<GraderMeta[]>('/graders').then((r) => r.data),
+  getGrader: (id: string) => http.get<GraderMeta>(`/graders/${id}`).then((r) => r.data),
+  createGrader: (payload: GraderPayload) =>
+    http.post<GraderMeta>('/graders', payload).then((r) => r.data),
+  updateGrader: (id: string, payload: Partial<GraderPayload>) =>
+    http.put<GraderMeta>(`/graders/${id}`, payload).then((r) => r.data),
+  deleteGrader: (id: string) => http.delete(`/graders/${id}`).then((r) => r.data),
 }
 
 export default http

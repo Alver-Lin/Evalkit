@@ -252,7 +252,48 @@ async def probe_openai_compatible(
         )
 
 
-async def probe_http_url(url: str, method: str = "GET") -> ProviderProbeResponse:
+SAMPLE_TEXT_LIMIT = 120_000
+
+
+def _truncate_sample(text: str, limit: int = SAMPLE_TEXT_LIMIT) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"\n…(已截断，共 {len(text)} 字符)"
+
+
+def _http_probe_timeout(timeout_sec: float | None) -> float:
+    if timeout_sec is None:
+        return PROBE_TIMEOUT
+    try:
+        value = float(timeout_sec)
+    except (TypeError, ValueError):
+        return PROBE_TIMEOUT
+    if value <= 0:
+        return PROBE_TIMEOUT
+    return min(max(value, 3.0), 120.0)
+
+
+def _merge_http_headers(raw: dict[str, str] | None) -> dict[str, str]:
+    headers: dict[str, str] = {"Accept": "text/event-stream, application/json, */*"}
+    if raw:
+        for key, value in raw.items():
+            k = _trim(str(key))
+            if not k:
+                continue
+            headers[k] = str(value)
+    if not any(k.lower() == "content-type" for k in headers):
+        headers["Content-Type"] = "application/json"
+    return headers
+
+
+async def probe_http_url(
+    url: str,
+    method: str = "GET",
+    *,
+    headers: dict[str, str] | None = None,
+    body: str = "",
+    timeout_sec: float | None = None,
+) -> ProviderProbeResponse:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return ProviderProbeResponse(ok=False, message="HTTP Provider URL 无效", provider_id=url)
@@ -261,33 +302,29 @@ async def probe_http_url(url: str, method: str = "GET") -> ProviderProbeResponse
     if verb not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}:
         verb = "GET"
 
+    timeout = _http_probe_timeout(timeout_sec)
+    req_headers = _merge_http_headers(headers)
+    content = body.encode("utf-8") if body else (b"{}" if verb not in {"GET", "HEAD", "OPTIONS"} else None)
+
     async with httpx.AsyncClient(
-        timeout=PROBE_TIMEOUT,
+        timeout=timeout,
         follow_redirects=True,
         trust_env=False,
     ) as client:
         started = time.perf_counter()
         try:
-            if verb == "GET":
-                response = await client.get(url)
-            elif verb == "HEAD":
-                response = await client.head(url)
-            elif verb == "OPTIONS":
-                response = await client.options(url)
-            else:
-                # Lightweight connectivity probe — empty JSON body, no SSE parse.
-                response = await client.request(
-                    verb,
-                    url,
-                    headers={"Content-Type": "application/json", "Accept": "*/*"},
-                    content=b"{}",
-                )
+            response = await client.request(
+                verb,
+                url,
+                headers=req_headers,
+                content=content,
+            )
             elapsed_ms = int((time.perf_counter() - started) * 1000)
         except httpx.TimeoutException:
             elapsed_ms = int((time.perf_counter() - started) * 1000)
             return ProviderProbeResponse(
                 ok=False,
-                message=f"请求超时（>{int(PROBE_TIMEOUT)}s）",
+                message=f"请求超时（>{int(timeout)}s）",
                 provider_id=url,
                 api_base=url,
                 latency_ms=elapsed_ms,
@@ -304,7 +341,9 @@ async def probe_http_url(url: str, method: str = "GET") -> ProviderProbeResponse
                 details={"method": verb},
             )
 
-    # Raw HTTP providers still need body for eval; here we only check reachability.
+    sample_text = _truncate_sample(response.text or "")
+    content_type = response.headers.get("content-type")
+
     if response.status_code >= 500:
         return ProviderProbeResponse(
             ok=False,
@@ -312,16 +351,35 @@ async def probe_http_url(url: str, method: str = "GET") -> ProviderProbeResponse
             provider_id=url,
             api_base=url,
             latency_ms=elapsed_ms,
-            details={"method": verb, "hint": "自定义 HTTP 评测还需配置 Body / transformResponse"},
+            status_code=response.status_code,
+            sample_text=sample_text or None,
+            content_type=content_type,
+            details={"method": verb, "hint": "请检查 Body / Header，或稍后重试"},
+        )
+
+    if response.status_code >= 400:
+        return ProviderProbeResponse(
+            ok=False,
+            message=f"服务返回 HTTP {response.status_code}（{verb}）",
+            provider_id=url,
+            api_base=url,
+            latency_ms=elapsed_ms,
+            status_code=response.status_code,
+            sample_text=sample_text or None,
+            content_type=content_type,
+            details={"method": verb},
         )
 
     return ProviderProbeResponse(
         ok=True,
-        message=f"地址可达（{verb} HTTP {response.status_code}）。评测请确认 Body 与响应提取配置",
+        message=f"连接成功（{verb} HTTP {response.status_code}）",
         provider_id=url,
         api_base=url,
         latency_ms=elapsed_ms,
-        details={"method": verb},
+        status_code=response.status_code,
+        sample_text=sample_text or None,
+        content_type=content_type,
+        details={"method": verb, "bytes": len(response.content or b"")},
     )
 
 
@@ -332,7 +390,13 @@ async def probe_provider(payload: ProviderProbeRequest) -> ProviderProbeResponse
 
     lower = provider_id.lower()
     if lower.startswith("http://") or lower.startswith("https://"):
-        return await probe_http_url(provider_id, method=payload.method or "GET")
+        return await probe_http_url(
+            provider_id,
+            method=payload.method or "GET",
+            headers=payload.headers,
+            body=payload.body or "",
+            timeout_sec=payload.timeout_sec,
+        )
 
     if lower.startswith("openai:"):
         api_base = normalize_api_base(api_host, provider_id)

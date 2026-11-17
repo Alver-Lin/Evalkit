@@ -26,7 +26,12 @@ SSE_TRANSFORM_MARKER = "if (!t.startsWith('data:')) continue"
 def _is_default_sse_transform(raw: Any) -> bool:
     if raw is None or raw == "":
         return False
-    return isinstance(raw, str) and SSE_TRANSFORM_MARKER in raw
+    if not isinstance(raw, str):
+        return False
+    # Visual field-extract transforms include this marker and must be persisted.
+    if "evalkit-extract:" in raw:
+        return False
+    return SSE_TRANSFORM_MARKER in raw
 
 
 def _provider_id(item: Any) -> str:

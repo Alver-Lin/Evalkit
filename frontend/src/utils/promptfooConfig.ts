@@ -6,6 +6,7 @@ import {
   assertShowsThreshold,
   getAssertMeta,
 } from '@/constants/assertOptions'
+import type { GraderMeta } from '@/types'
 
 export interface VisualAssert {
   /** Base assertion type without `not-` prefix. */
@@ -17,8 +18,8 @@ export interface VisualAssert {
   min?: number | null
   /** Inclusive max for range assertions such as word-count. */
   max?: number | null
-  /** Index into VisualConfig.providers used as grader (llm-rubric / similar). */
-  graderProviderIndex?: number | null
+  /** Id of a grader from 模型评测配置 (llm-rubric / similar). */
+  graderId?: string | null
   /** When true, serialize as `not-<type>` in YAML. */
   negated?: boolean
 }
@@ -29,7 +30,7 @@ function finiteOrNull(value: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-export function createVisualAssert(type = 'contains', graderProviderIndex: number | null = null): VisualAssert {
+export function createVisualAssert(type = 'contains', graderId: string | null = null): VisualAssert {
   const meta = getAssertMeta(type)
   const baseType = meta.value || type
   return {
@@ -38,9 +39,34 @@ export function createVisualAssert(type = 'contains', graderProviderIndex: numbe
     threshold: meta.hasThreshold ? (meta.defaultThreshold ?? null) : null,
     min: meta.hasRange ? (meta.defaultMin ?? null) : null,
     max: meta.hasRange ? (meta.defaultMax ?? null) : null,
-    graderProviderIndex: meta.needsGrader ? graderProviderIndex : null,
+    graderId: meta.needsGrader ? graderId : null,
     negated: false,
   }
+}
+
+/** Convert a grader meta record into VisualProvider for YAML serialization. */
+export function graderMetaToVisualProvider(grader: GraderMeta): VisualProvider {
+  const kind = grader.kind === 'http' ? 'http' : 'openai'
+  return {
+    kind,
+    id: grader.provider_id || '',
+    label: grader.name || '',
+    apiKey: grader.api_key || '',
+    apiHost: grader.api_host || '',
+    organization: grader.organization || '',
+    enableThinking: Boolean(grader.enable_thinking),
+    maxTokens: grader.max_tokens ?? 1024,
+    description: grader.description || '',
+    httpMethod: (grader.http_method || 'POST').toUpperCase() || 'POST',
+    timeoutSec: grader.timeout_sec ?? 60,
+    headers: (grader.headers || []).map((h) => ({ key: h.key || '', value: h.value || '' })),
+    transformResponse: grader.transform_response || '',
+  }
+}
+
+function findGraderById(graders: GraderMeta[], graderId: string | null | undefined): GraderMeta | null {
+  if (!graderId) return null
+  return graders.find((g) => g.id === graderId) || null
 }
 
 /** Parse assertion value for YAML: JSON / comma list / plain string. */
@@ -108,7 +134,8 @@ function toHttpProviderYaml(provider: VisualProvider): Record<string, unknown> |
   if (headers) config.headers = headers
   // Request body comes from the prompts step; provider only references {{prompt}}.
   config.body = '{{prompt}}'
-  // Default SSE transformResponse is injected at run time, not written to YAML.
+  const transform = (provider.transformResponse || '').trim()
+  if (transform) config.transformResponse = transform
 
   const out: Record<string, unknown> = { id: url }
   if (provider.label.trim()) out.label = provider.label.trim()
@@ -243,7 +270,7 @@ function parseCharCountScript(script: string): { min: number | null; max: number
 
 function serializeOneAssert(
   assert: VisualAssert,
-  providers: VisualProvider[],
+  graders: GraderMeta[] = [],
 ): Record<string, unknown> | null {
   const type = assert.type.trim()
   if (!type) return null
@@ -289,9 +316,9 @@ function serializeOneAssert(
   // Grade final answer only; report UI still shows Thinking separately from raw output.
   out.transform = STRIP_THINKING_TRANSFORM
 
-  if (meta.needsGrader && assert.graderProviderIndex != null) {
-    const provider = providers[assert.graderProviderIndex]
-    const yamlProvider = provider ? toProviderYaml(provider) : null
+  if (meta.needsGrader && assert.graderId) {
+    const grader = findGraderById(graders, assert.graderId)
+    const yamlProvider = grader ? toProviderYaml(graderMetaToVisualProvider(grader)) : null
     if (yamlProvider) out.provider = yamlProvider
   }
   return out
@@ -308,6 +335,25 @@ export type ProviderKind = 'openai' | 'http'
 export interface VisualHttpHeader {
   key: string
   value: string
+}
+
+export type ProviderProbeStatus = 'success' | 'error'
+
+/** UI-only connectivity result; never written to YAML. */
+export interface ProviderProbe {
+  status: ProviderProbeStatus
+  message: string
+  /** Hash of connection-relevant fields; stale when config changes. */
+  fingerprint: string
+}
+
+/** UI-only sample from connectivity probe for extract preview. */
+export interface ProviderProbeSample {
+  text: string
+  statusCode?: number | null
+  latencyMs?: number | null
+  contentType?: string | null
+  fingerprint: string
 }
 
 export interface VisualProvider {
@@ -328,6 +374,468 @@ export interface VisualProvider {
   headers?: VisualHttpHeader[]
   bodyText?: string
   transformResponse?: string
+  /** UI-only response extract settings; compiled into transformResponse. */
+  responseExtract?: ResponseExtractConfig
+  /** UI-only probe result; stripped from YAML serialization. */
+  probe?: ProviderProbe | null
+  /** UI-only latest probe response body for visual extract. */
+  probeSample?: ProviderProbeSample | null
+}
+
+/** Fingerprint of fields that affect connectivity testing. */
+export function providerProbeFingerprint(provider: VisualProvider): string {
+  const kind = inferProviderKind(provider)
+  const headers = (provider.headers || [])
+    .map((h) => `${h.key.trim()}=${h.value}`)
+    .filter((pair) => !pair.startsWith('='))
+    .sort()
+    .join('&')
+  return [
+    kind,
+    provider.id.trim(),
+    (provider.httpMethod || 'POST').trim().toUpperCase(),
+    provider.apiKey.trim(),
+    provider.apiHost.trim(),
+    provider.organization.trim(),
+    headers,
+  ].join('|')
+}
+
+export function providerProbeView(
+  provider: VisualProvider,
+): { status: ProviderProbeStatus; message: string } | null {
+  const probe = provider.probe
+  if (!probe) return null
+  if (probe.fingerprint !== providerProbeFingerprint(provider)) return null
+  return { status: probe.status, message: probe.message }
+}
+
+function probeStorageKey(configId: string) {
+  return `evalkit.providerProbe.${configId}`
+}
+
+export function persistProviderProbes(configId: string, providers: VisualProvider[]) {
+  if (!configId || typeof localStorage === 'undefined') return
+  const map: Record<string, ProviderProbe> = {}
+  for (const provider of providers) {
+    const view = providerProbeView(provider)
+    if (!view || !provider.probe) continue
+    map[provider.probe.fingerprint] = {
+      status: view.status,
+      message: view.message,
+      fingerprint: provider.probe.fingerprint,
+    }
+  }
+  try {
+    if (Object.keys(map).length) localStorage.setItem(probeStorageKey(configId), JSON.stringify(map))
+    else localStorage.removeItem(probeStorageKey(configId))
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+export function restoreProviderProbes(configId: string, providers: VisualProvider[]) {
+  if (!configId || typeof localStorage === 'undefined') return
+  let map: Record<string, ProviderProbe> = {}
+  try {
+    const raw = localStorage.getItem(probeStorageKey(configId))
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return
+    map = parsed as Record<string, ProviderProbe>
+  } catch {
+    return
+  }
+  for (const provider of providers) {
+    const fp = providerProbeFingerprint(provider)
+    const saved = map[fp]
+    if (!saved || (saved.status !== 'success' && saved.status !== 'error')) continue
+    provider.probe = {
+      status: saved.status,
+      message: String(saved.message || (saved.status === 'success' ? '连接成功' : '连接失败')),
+      fingerprint: fp,
+    }
+  }
+}
+
+/** Default SSE-friendly transform for custom HTTP providers. */
+export const DEFAULT_SSE_TRANSFORM_RESPONSE = `(json, text) => {
+  const chunks = [];
+  for (const line of String(text || '').split('\\n')) {
+    const t = line.trim();
+    if (!t.startsWith('data:')) continue;
+    const raw = t.replace(/^data:\\s?/, '');
+    if (!raw || raw === '[DONE]') continue;
+    chunks.push(raw);
+  }
+  return chunks.join('\\n') || text;
+}`
+
+export type ResponseExtractSource = 'sse' | 'json'
+export type ResponseExtractStrategy = 'raw' | 'fields'
+export type ResponseExtractPick = 'all' | 'last'
+export type ResponseExtractJoin = '\n' | ' ' | ''
+export type ResponseExtractMode = 'visual' | 'code'
+
+/** UI-friendly response extraction; compiled into transformResponse. */
+export interface ResponseExtractConfig {
+  mode: ResponseExtractMode
+  source: ResponseExtractSource
+  strategy: ResponseExtractStrategy
+  fields: string[]
+  joinWith: ResponseExtractJoin
+  pick: ResponseExtractPick
+}
+
+export const RESPONSE_EXTRACT_FIELD_PRESETS = [
+  'answer',
+  'content',
+  'text',
+  'message',
+  'sql',
+  'data',
+  'result',
+  'output',
+] as const
+
+export function defaultResponseExtract(): ResponseExtractConfig {
+  return {
+    mode: 'visual',
+    source: 'sse',
+    strategy: 'raw',
+    fields: [],
+    joinWith: '\n',
+    pick: 'all',
+  }
+}
+
+const EXTRACT_MARKER_RE = /\/\*\s*evalkit-extract:(\{[\s\S]*?\})\s*\*\//
+
+function normalizeExtractFields(fields: unknown): string[] {
+  if (!Array.isArray(fields)) return []
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const item of fields) {
+    const name = String(item || '')
+      .trim()
+      .replace(/^\.+/, '')
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    out.push(name)
+  }
+  return out
+}
+
+export function normalizeResponseExtract(raw: unknown): ResponseExtractConfig {
+  const base = defaultResponseExtract()
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return base
+  const obj = raw as Record<string, unknown>
+  const mode = obj.mode === 'code' ? 'code' : 'visual'
+  const source = obj.source === 'json' ? 'json' : 'sse'
+  const strategy = obj.strategy === 'fields' ? 'fields' : 'raw'
+  const pick = obj.pick === 'last' ? 'last' : 'all'
+  const joinWith =
+    obj.joinWith === ' ' || obj.joinWith === '' || obj.joinWith === '\n' ? obj.joinWith : '\n'
+  return {
+    mode,
+    source,
+    strategy,
+    fields: normalizeExtractFields(obj.fields),
+    joinWith,
+    pick,
+  }
+}
+
+function extractMarkerPayload(config: ResponseExtractConfig): string {
+  return JSON.stringify({
+    source: config.source,
+    strategy: config.strategy,
+    fields: config.fields,
+    joinWith: config.joinWith,
+    pick: config.pick,
+  })
+}
+
+/** Build promptfoo transformResponse from visual extract settings. */
+export function buildTransformResponse(config: ResponseExtractConfig): string {
+  const normalized = normalizeResponseExtract({ ...config, mode: 'visual' })
+  if (
+    normalized.source === 'sse' &&
+    normalized.strategy === 'raw' &&
+    normalized.pick === 'all' &&
+    normalized.joinWith === '\n'
+  ) {
+    return DEFAULT_SSE_TRANSFORM_RESPONSE
+  }
+
+  const marker = `/* evalkit-extract:${extractMarkerPayload(normalized)} */`
+  const fieldsLit = JSON.stringify(normalized.fields)
+  const joinLit = JSON.stringify(normalized.joinWith)
+  const pickLast = normalized.pick === 'last' ? 'true' : 'false'
+  const useFields = normalized.strategy === 'fields' ? 'true' : 'false'
+
+  if (normalized.source === 'json') {
+    return `(json, text) => {
+  ${marker}
+  const fields = ${fieldsLit};
+  const joinWith = ${joinLit};
+  const useFields = ${useFields};
+  let obj = json;
+  if (obj == null || typeof obj !== 'object') {
+    try { obj = JSON.parse(String(text || '')); } catch { obj = null; }
+  }
+  if (!useFields) {
+    return obj != null ? JSON.stringify(obj) : String(text || '');
+  }
+  if (!obj || typeof obj !== 'object') return String(text || '');
+  const parts = fields.map((f) => {
+    const v = obj[f];
+    if (v == null || v === '') return '';
+    return typeof v === 'string' ? v : JSON.stringify(v);
+  }).filter(Boolean);
+  return parts.join(joinWith) || String(text || '');
+}`
+  }
+
+  return `(json, text) => {
+  ${marker}
+  const fields = ${fieldsLit};
+  const joinWith = ${joinLit};
+  const pickLast = ${pickLast};
+  const useFields = ${useFields};
+  const values = [];
+  for (const line of String(text || '').split('\\n')) {
+    const t = line.trim();
+    if (!t.startsWith('data:')) continue;
+    const raw = t.replace(/^data:\\s?/, '');
+    if (!raw || raw === '[DONE]') continue;
+    let piece = '';
+    if (useFields) {
+      let obj = null;
+      try { obj = JSON.parse(raw); } catch {}
+      if (!obj || typeof obj !== 'object') continue;
+      const parts = fields.map((f) => {
+        const v = obj[f];
+        if (v == null || v === '') return '';
+        return typeof v === 'string' ? v : JSON.stringify(v);
+      }).filter(Boolean);
+      if (!parts.length) continue;
+      piece = parts.join(joinWith);
+    } else {
+      piece = raw;
+    }
+    if (pickLast) values.length = 0;
+    values.push(piece);
+  }
+  return values.join(joinWith) || text;
+}`
+}
+
+export function parseResponseExtractFromTransform(transform: string | null | undefined): ResponseExtractConfig {
+  const text = String(transform || '').trim()
+  if (!text || text === DEFAULT_SSE_TRANSFORM_RESPONSE.trim()) {
+    return defaultResponseExtract()
+  }
+  const match = text.match(EXTRACT_MARKER_RE)
+  if (match?.[1]) {
+    try {
+      return normalizeResponseExtract({ ...JSON.parse(match[1]), mode: 'visual' })
+    } catch {
+      // fall through to code mode
+    }
+  }
+  return {
+    ...defaultResponseExtract(),
+    mode: 'code',
+  }
+}
+
+export function ensureProviderExtract(provider: VisualProvider): ResponseExtractConfig {
+  if (!provider.responseExtract) {
+    provider.responseExtract = parseResponseExtractFromTransform(provider.transformResponse)
+  }
+  return provider.responseExtract
+}
+
+export function applyResponseExtract(provider: VisualProvider, patch: Partial<ResponseExtractConfig>) {
+  const current = ensureProviderExtract(provider)
+  const next = normalizeResponseExtract({ ...current, ...patch })
+  provider.responseExtract = next
+  if (next.mode === 'visual') {
+    provider.transformResponse = buildTransformResponse(next)
+  }
+}
+
+function collectObjectFields(value: unknown, out: Set<string>) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    if (key) out.add(key)
+  }
+}
+
+/** Parse SSE data: payloads or whole JSON body into event objects. */
+export function parseProbeEvents(sampleText: string, source: ResponseExtractSource = 'sse'): unknown[] {
+  const text = String(sampleText || '')
+  if (!text.trim()) return []
+
+  if (source === 'json') {
+    try {
+      return [JSON.parse(text)]
+    } catch {
+      return [text]
+    }
+  }
+
+  const events: unknown[] = []
+  for (const line of text.split('\n')) {
+    const t = line.trim()
+    if (!t.startsWith('data:')) continue
+    const raw = t.replace(/^data:\s?/, '')
+    if (!raw || raw === '[DONE]') continue
+    try {
+      events.push(JSON.parse(raw))
+    } catch {
+      events.push(raw)
+    }
+  }
+  if (!events.length) {
+    try {
+      events.push(JSON.parse(text))
+    } catch {
+      // keep empty — not SSE/JSON
+    }
+  }
+  return events
+}
+
+export function discoverResponseFields(
+  sampleText: string,
+  source: ResponseExtractSource = 'sse',
+): string[] {
+  const fields = new Set<string>()
+  for (const event of parseProbeEvents(sampleText, source)) {
+    collectObjectFields(event, fields)
+  }
+  const preferred = RESPONSE_EXTRACT_FIELD_PRESETS.filter((name) => fields.has(name))
+  const rest = Array.from(fields)
+    .filter((name) => !preferred.includes(name as (typeof RESPONSE_EXTRACT_FIELD_PRESETS)[number]))
+    .sort((a, b) => a.localeCompare(b))
+  return [...preferred, ...rest]
+}
+
+function fieldValueText(value: unknown): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+/** Client-side mirror of visual transformResponse for live preview. */
+export function previewExtractOutput(
+  sampleText: string,
+  config: ResponseExtractConfig,
+): string {
+  const cfg = normalizeResponseExtract(config)
+  const text = String(sampleText || '')
+  if (!text) return ''
+
+  if (cfg.source === 'json') {
+    let obj: unknown = null
+    try {
+      obj = JSON.parse(text)
+    } catch {
+      obj = null
+    }
+    if (cfg.strategy !== 'fields') {
+      return obj != null ? fieldValueText(obj) : text
+    }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return text
+    const parts = cfg.fields
+      .map((f) => fieldValueText((obj as Record<string, unknown>)[f]))
+      .filter(Boolean)
+    return parts.join(cfg.joinWith) || text
+  }
+
+  const values: string[] = []
+  for (const line of text.split('\n')) {
+    const t = line.trim()
+    if (!t.startsWith('data:')) continue
+    const raw = t.replace(/^data:\s?/, '')
+    if (!raw || raw === '[DONE]') continue
+    let piece = ''
+    if (cfg.strategy === 'fields') {
+      let obj: Record<string, unknown> | null = null
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          obj = parsed as Record<string, unknown>
+        }
+      } catch {
+        obj = null
+      }
+      if (!obj) continue
+      const parts = cfg.fields.map((f) => fieldValueText(obj![f])).filter(Boolean)
+      if (!parts.length) continue
+      piece = parts.join(cfg.joinWith)
+    } else {
+      piece = raw
+    }
+    if (cfg.pick === 'last') values.length = 0
+    values.push(piece)
+  }
+  return values.join(cfg.joinWith) || text
+}
+
+export function guessExtractSource(sampleText: string): ResponseExtractSource {
+  const text = String(sampleText || '')
+  if (/^\s*data:/m.test(text)) return 'sse'
+  const trimmed = text.trim()
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    return 'json'
+  }
+  return 'sse'
+}
+
+/** Replace `{{var}}` placeholders using test vars (for HTTP probe body). */
+export function renderTemplateVars(
+  template: string,
+  vars: Record<string, unknown>,
+): string {
+  return String(template || '').replace(/\{\{\s*([a-zA-Z_][\w]*)\s*\}\}/g, (_, key: string) => {
+    if (!(key in vars)) return ''
+    const value = vars[key]
+    if (value == null) return ''
+    if (typeof value === 'string') return value
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return String(value)
+    }
+  })
+}
+
+export function buildHttpProbeBody(visual: VisualConfig): string {
+  const prompt = visual.prompts.find((item) => item.trim()) || '{}'
+  const vars = parseVars(visual.tests[0]?.varsText || '{}')
+  return renderTemplateVars(prompt, vars)
+}
+
+export function headersToProbeRecord(
+  headers: VisualHttpHeader[] | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const item of headers || []) {
+    const key = item.key.trim()
+    if (!key) continue
+    out[key] = item.value
+  }
+  return out
 }
 
 export function emptyProvider(): VisualProvider {
@@ -344,6 +852,7 @@ export function emptyProvider(): VisualProvider {
 }
 
 export function emptyHttpProvider(): VisualProvider {
+  const responseExtract = defaultResponseExtract()
   return {
     kind: 'http',
     id: '',
@@ -356,7 +865,8 @@ export function emptyHttpProvider(): VisualProvider {
     timeoutSec: 60,
     headers: [{ key: 'Content-Type', value: 'application/json' }],
     bodyText: '{{prompt}}',
-    transformResponse: '',
+    transformResponse: buildTransformResponse(responseExtract),
+    responseExtract,
   }
 }
 
@@ -369,6 +879,7 @@ export function providerHasExtraFields(provider: VisualProvider): boolean {
     return Boolean(
       provider.label.trim() ||
         (provider.description || '').trim() ||
+        (provider.transformResponse || '').trim() ||
         (provider.headers || []).some((h) => h.key.trim() || h.value.trim()),
     )
   }
@@ -605,6 +1116,10 @@ function normalizeProvider(item: unknown): VisualProvider {
     if (kind === 'http') {
       const method = String(config.method || obj.method || 'POST').toUpperCase() || 'POST'
       const headers = normalizeHeaders(config.headers)
+      const transformResponse =
+        config.transformResponse != null && String(config.transformResponse).trim()
+          ? String(config.transformResponse)
+          : DEFAULT_SSE_TRANSFORM_RESPONSE
       return {
         ...emptyHttpProvider(),
         kind: 'http',
@@ -615,8 +1130,8 @@ function normalizeProvider(item: unknown): VisualProvider {
         timeoutSec: normalizeTimeoutSec(config),
         headers: headers.length ? headers : [{ key: 'Content-Type', value: 'application/json' }],
         bodyText: normalizeBodyText(config.body),
-        // Default SSE transform lives at run time only; keep visual YAML clean.
-        transformResponse: '',
+        transformResponse,
+        responseExtract: parseResponseExtractFromTransform(transformResponse),
       }
     }
 
@@ -648,36 +1163,39 @@ function serializeAssertType(assert: VisualAssert): string {
   return assert.negated ? `not-${stripped}` : stripped
 }
 
-function matchGraderProviderIndex(raw: unknown, providers: VisualProvider[]): number | null {
-  if (raw == null || !providers.length) return null
+function matchGraderId(raw: unknown, graders: GraderMeta[]): string | null {
+  if (raw == null || !graders.length) return null
   let id = ''
   let apiHost = ''
+  let label = ''
   if (typeof raw === 'string') {
     id = raw.trim()
   } else if (typeof raw === 'object') {
     const obj = raw as Record<string, unknown>
     id = String(obj.id || '').trim()
+    label = String(obj.label || '').trim()
     const config =
       obj.config && typeof obj.config === 'object' && !Array.isArray(obj.config)
         ? (obj.config as Record<string, unknown>)
         : {}
     apiHost = String(config.apiBaseUrl || config.apiHost || config.baseUrl || '').trim()
   }
-  if (!id) return null
+  if (!id && !label) return null
 
-  for (let i = 0; i < providers.length; i += 1) {
-    const provider = providers[i]
+  for (const grader of graders) {
+    const provider = graderMetaToVisualProvider(grader)
     if (!provider.id.trim()) continue
-    if (provider.id === id) return i
+    if (label && grader.name.trim() === label) return grader.id
+    if (provider.id === id) return grader.id
     const resolved = resolveProviderTarget(provider.id, provider.apiHost)
     if (resolved.id === id) {
-      if (!apiHost || !resolved.apiHost || resolved.apiHost === apiHost) return i
+      if (!apiHost || !resolved.apiHost || resolved.apiHost === apiHost) return grader.id
     }
   }
   return null
 }
 
-export function normalizeAssert(item: unknown, providers: VisualProvider[] = []): VisualAssert {
+export function normalizeAssert(item: unknown, graders: GraderMeta[] = []): VisualAssert {
   if (item && typeof item === 'object') {
     const obj = item as Record<string, unknown>
     const value = obj.value
@@ -706,7 +1224,7 @@ export function normalizeAssert(item: unknown, providers: VisualProvider[] = [])
           threshold: null,
           min: parsed.min,
           max: parsed.max,
-          graderProviderIndex: null,
+          graderId: null,
           negated: /const pass = !inRange/.test(value) ? true : negated,
         }
       }
@@ -738,9 +1256,7 @@ export function normalizeAssert(item: unknown, providers: VisualProvider[] = [])
       threshold: assertShowsThreshold(type) ? threshold : null,
       min: assertShowsRange(type) ? min : null,
       max: assertShowsRange(type) ? max : null,
-      graderProviderIndex: assertNeedsGrader(type)
-        ? matchGraderProviderIndex(obj.provider, providers)
-        : null,
+      graderId: assertNeedsGrader(type) ? matchGraderId(obj.provider, graders) : null,
       negated,
     }
   }
@@ -748,7 +1264,7 @@ export function normalizeAssert(item: unknown, providers: VisualProvider[] = [])
 }
 
 /** Parse assert YAML text (list or `{ assert: [...] }`). JSON-only payloads are rejected. */
-export function parseAssertYaml(text: string, providers: VisualProvider[] = []): VisualAssert[] {
+export function parseAssertYaml(text: string, graders: GraderMeta[] = []): VisualAssert[] {
   const trimmed = text.trim()
   if (!trimmed) return []
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -768,10 +1284,10 @@ export function parseAssertYaml(text: string, providers: VisualProvider[] = []):
     else if ('type' in record) data = [record]
     else throw new Error('断言 YAML 格式无效')
   }
-  return asList(data).map((item) => normalizeAssert(item, providers))
+  return asList(data).map((item) => normalizeAssert(item, graders))
 }
 
-function normalizeTest(item: unknown, providers: VisualProvider[] = []): VisualTest {
+function normalizeTest(item: unknown, graders: GraderMeta[] = []): VisualTest {
   if (!item || typeof item !== 'object') {
     return { description: '', varsText: '{\n  \n}', asserts: [] }
   }
@@ -779,7 +1295,7 @@ function normalizeTest(item: unknown, providers: VisualProvider[] = []): VisualT
   return {
     description: String(obj.description || ''),
     varsText: stringifyVars((obj.vars as Record<string, unknown>) || {}),
-    asserts: asList(obj.assert).map((assertItem) => normalizeAssert(assertItem, providers)),
+    asserts: asList(obj.assert).map((assertItem) => normalizeAssert(assertItem, graders)),
   }
 }
 
@@ -799,7 +1315,11 @@ export function createEmptyVisualConfig(description = ''): VisualConfig {
   }
 }
 
-export function yamlToVisual(yamlContent: string, fallbackDescription = ''): VisualConfig {
+export function yamlToVisual(
+  yamlContent: string,
+  fallbackDescription = '',
+  graders: GraderMeta[] = [],
+): VisualConfig {
   let parsed: Record<string, unknown> = {}
   try {
     const data = load(yamlContent || '')
@@ -832,14 +1352,16 @@ export function yamlToVisual(yamlContent: string, fallbackDescription = ''): Vis
     description: String(parsed.description || fallbackDescription || ''),
     prompts: prompts.length ? prompts : [''],
     providers: normalizedProviders,
-    defaultAsserts: asList(defaultTest.assert).map((item) =>
-      normalizeAssert(item, normalizedProviders),
-    ),
-    tests: asList(parsed.tests).map((item) => normalizeTest(item, normalizedProviders)),
+    defaultAsserts: asList(defaultTest.assert).map((item) => normalizeAssert(item, graders)),
+    tests: asList(parsed.tests).map((item) => normalizeTest(item, graders)),
   }
 }
 
-export function visualToYaml(visual: VisualConfig, existingYaml = ''): string {
+export function visualToYaml(
+  visual: VisualConfig,
+  existingYaml = '',
+  graders: GraderMeta[] = [],
+): string {
   let base: Record<string, unknown> = {}
   try {
     const parsed = load(existingYaml || '')
@@ -858,7 +1380,7 @@ export function visualToYaml(visual: VisualConfig, existingYaml = ''): string {
     .filter((p): p is Record<string, unknown> => p != null)
 
   const defaultAsserts = visual.defaultAsserts
-    .map((a) => serializeOneAssert(a, visual.providers))
+    .map((a) => serializeOneAssert(a, graders))
     .filter((a): a is Record<string, unknown> => a != null)
 
   const existingDefault =
@@ -886,7 +1408,7 @@ export function visualToYaml(visual: VisualConfig, existingYaml = ''): string {
     }
     if (t.description.trim()) test.description = t.description.trim()
     const asserts = t.asserts
-      .map((a) => serializeOneAssert(a, visual.providers))
+      .map((a) => serializeOneAssert(a, graders))
       .filter((a): a is Record<string, unknown> => a != null)
     if (asserts.length) test.assert = asserts
     return test

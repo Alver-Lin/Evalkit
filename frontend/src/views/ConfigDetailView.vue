@@ -4,11 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 import { api } from '@/api/client'
-import type { ConfigMeta } from '@/types'
+import type { ConfigMeta, GraderMeta } from '@/types'
 import VisualConfigForm from '@/components/VisualConfigForm.vue'
 import {
   createEmptyVisualConfig,
+  persistProviderProbes,
   providerHasId,
+  restoreProviderProbes,
   validateVisualProviders,
   visualToYaml,
   yamlToVisual,
@@ -20,6 +22,7 @@ const router = useRouter()
 const loading = ref(false)
 const running = ref(false)
 const config = ref<ConfigMeta | null>(null)
+const graders = ref<GraderMeta[]>([])
 const activeTab = ref('visual')
 const visualStep = ref(1)
 const visual = ref<VisualConfig>(createEmptyVisualConfig())
@@ -33,8 +36,8 @@ const form = reactive({
 
 const steps = [
   { step: 1, key: 'basic' as const, label: '基本信息' },
-  { step: 2, key: 'providers' as const, label: '供应商' },
-  { step: 3, key: 'prompts' as const, label: '提示词' },
+  { step: 2, key: 'prompts' as const, label: '提示词' },
+  { step: 3, key: 'providers' as const, label: '供应商' },
   { step: 4, key: 'tests' as const, label: '测试用例' },
 ]
 
@@ -51,12 +54,13 @@ function syncDescriptionToVisual() {
 
 function syncVisualToYaml() {
   visual.value.description = form.description
-  form.yaml_content = visualToYaml(visual.value, form.yaml_content)
+  form.yaml_content = visualToYaml(visual.value, form.yaml_content, graders.value)
 }
 
 function syncYamlToVisual() {
-  visual.value = yamlToVisual(form.yaml_content, form.description)
+  visual.value = yamlToVisual(form.yaml_content, form.description, graders.value)
   form.description = visual.value.description || form.description
+  restoreProviderProbes(String(route.params.id), visual.value.providers)
 }
 
 function ensureProvidersValid(): boolean {
@@ -66,7 +70,7 @@ function ensureProvidersValid(): boolean {
   const result = validateVisualProviders(visual.value.providers)
   if (result.ok) return true
   activeTab.value = 'visual'
-  visualStep.value = 2
+  visualStep.value = 3
   message.error(result.message || '供应商配置不完整')
   return false
 }
@@ -75,8 +79,12 @@ function onDescriptionChange() {
   syncDescriptionToVisual()
   if (activeTab.value === 'yaml') {
     form.yaml_content = visualToYaml(
-      { ...yamlToVisual(form.yaml_content, form.description), description: form.description },
+      {
+        ...yamlToVisual(form.yaml_content, form.description, graders.value),
+        description: form.description,
+      },
       form.yaml_content,
+      graders.value,
     )
   }
 }
@@ -92,19 +100,29 @@ function onTabChange(key: string | number) {
   activeTab.value = next
 }
 
+async function loadGraders() {
+  try {
+    graders.value = await api.listGraders()
+  } catch {
+    graders.value = []
+  }
+}
+
 async function load() {
   loading.value = true
   try {
+    await loadGraders()
     config.value = await api.getConfig(String(route.params.id))
     form.name = config.value.name
     form.description = config.value.description
     form.yaml_content = config.value.yaml_content
-    visual.value = yamlToVisual(form.yaml_content, form.description)
+    visual.value = yamlToVisual(form.yaml_content, form.description, graders.value)
+    restoreProviderProbes(String(route.params.id), visual.value.providers)
     if (!form.description && visual.value.description) {
       form.description = visual.value.description
     } else {
       visual.value.description = form.description
-      form.yaml_content = visualToYaml(visual.value, form.yaml_content)
+      form.yaml_content = visualToYaml(visual.value, form.yaml_content, graders.value)
     }
     activeTab.value = 'visual'
     visualStep.value = 1
@@ -130,6 +148,7 @@ async function save(): Promise<boolean> {
       description: form.description,
       yaml_content: form.yaml_content,
     })
+    persistProviderProbes(String(route.params.id), visual.value.providers)
     message.success('已保存')
     return true
   } catch (err: any) {
@@ -197,7 +216,7 @@ onMounted(load)
                 </nav>
 
                 <div class="step-body">
-                  <section v-if="visualStep === 1" class="panel-block">
+                  <section v-show="visualStep === 1" class="panel-block">
                     <header class="panel-head">
                       <div class="head-text">
                         <h3>基本信息</h3>
@@ -223,9 +242,14 @@ onMounted(load)
                   </section>
 
                   <VisualConfigForm
-                    v-else
+                    v-show="visualStep !== 1"
                     v-model="visual"
-                    :section="steps[visualStep - 1].key as 'prompts' | 'providers' | 'tests'"
+                    :config-id="String(route.params.id || '')"
+                    :section="
+                      (visualStep === 1
+                        ? 'prompts'
+                        : steps[visualStep - 1].key) as 'prompts' | 'providers' | 'tests'
+                    "
                   />
                 </div>
               </div>

@@ -10,9 +10,8 @@ from typing import Any, Optional
 import yaml
 
 from app.core.config import settings
-from app.models.schemas import ConfigMeta, EvalRunSummary, EvalStatus
+from app.models.schemas import ConfigMeta, EvalRunSummary, EvalStatus, GraderHttpHeader, GraderMeta
 from app.services.chinese_rubric import strip_evalkit_rubric_prompt_text
-from app.services.http_sse import strip_default_sse_transform_text
 
 
 def _now() -> datetime:
@@ -43,8 +42,7 @@ class ConfigStore:
 
     @staticmethod
     def _sanitize_yaml(yaml_content: str) -> str:
-        cleaned = strip_evalkit_rubric_prompt_text(yaml_content)
-        return strip_default_sse_transform_text(cleaned)
+        return strip_evalkit_rubric_prompt_text(yaml_content)
 
     def create(self, name: str, description: str, yaml_content: str) -> ConfigMeta:
         yaml_content = self._sanitize_yaml(yaml_content)
@@ -186,5 +184,140 @@ class RunStore:
         shutil.rmtree(folder)
 
 
+class GraderStore:
+    def list(self) -> list[GraderMeta]:
+        items: list[GraderMeta] = []
+        for meta_path in settings.graders_dir.glob("*/meta.json"):
+            items.append(GraderMeta(**_read_json(meta_path)))
+        return sorted(items, key=lambda g: g.updated_at, reverse=True)
+
+    def get(self, grader_id: str) -> GraderMeta:
+        meta_path = settings.graders_dir / grader_id / "meta.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Grader not found: {grader_id}")
+        return GraderMeta(**_read_json(meta_path))
+
+    def create(
+        self,
+        *,
+        kind: str,
+        name: str,
+        description: str = "",
+        provider_id: str = "",
+        api_key: str = "",
+        api_host: str = "",
+        organization: str = "",
+        enable_thinking: bool = False,
+        max_tokens: Optional[int] = 1024,
+        http_method: str = "POST",
+        timeout_sec: Optional[float] = 60,
+        headers: Optional[list[GraderHttpHeader]] = None,
+        transform_response: str = "",
+    ) -> GraderMeta:
+        kind = self._normalize_kind(kind)
+        name = name.strip()
+        if not name:
+            raise ValueError("Name is required")
+        provider_id = (provider_id or "").strip()
+        if not provider_id:
+            raise ValueError("Provider ID / URL is required")
+        grader_id = uuid.uuid4().hex[:12]
+        now = _now()
+        meta = GraderMeta(
+            id=grader_id,
+            kind=kind,
+            name=name,
+            description=description or "",
+            provider_id=provider_id,
+            api_key=api_key or "",
+            api_host=api_host or "",
+            organization=organization or "",
+            enable_thinking=bool(enable_thinking),
+            max_tokens=max_tokens,
+            http_method=(http_method or "POST").strip().upper() or "POST",
+            timeout_sec=timeout_sec,
+            headers=list(headers or []),
+            transform_response=transform_response or "",
+            created_at=now,
+            updated_at=now,
+        )
+        self._persist(meta)
+        return meta
+
+    def update(
+        self,
+        grader_id: str,
+        *,
+        kind: Optional[str] = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        api_key: Optional[str] = None,
+        api_host: Optional[str] = None,
+        organization: Optional[str] = None,
+        enable_thinking: Optional[bool] = None,
+        max_tokens: Optional[int] = None,
+        http_method: Optional[str] = None,
+        timeout_sec: Optional[float] = None,
+        headers: Optional[list[GraderHttpHeader]] = None,
+        transform_response: Optional[str] = None,
+    ) -> GraderMeta:
+        meta = self.get(grader_id)
+        if kind is not None:
+            meta.kind = self._normalize_kind(kind)
+        if name is not None:
+            name = name.strip()
+            if not name:
+                raise ValueError("Name is required")
+            meta.name = name
+        if description is not None:
+            meta.description = description
+        if provider_id is not None:
+            provider_id = provider_id.strip()
+            if not provider_id:
+                raise ValueError("Provider ID / URL is required")
+            meta.provider_id = provider_id
+        if api_key is not None:
+            meta.api_key = api_key
+        if api_host is not None:
+            meta.api_host = api_host
+        if organization is not None:
+            meta.organization = organization
+        if enable_thinking is not None:
+            meta.enable_thinking = bool(enable_thinking)
+        if max_tokens is not None:
+            meta.max_tokens = max_tokens
+        if http_method is not None:
+            meta.http_method = http_method.strip().upper() or "POST"
+        if timeout_sec is not None:
+            meta.timeout_sec = timeout_sec
+        if headers is not None:
+            meta.headers = list(headers)
+        if transform_response is not None:
+            meta.transform_response = transform_response
+        meta.updated_at = _now()
+        self._persist(meta)
+        return meta
+
+    def delete(self, grader_id: str) -> None:
+        folder = settings.graders_dir / grader_id
+        if not folder.exists():
+            raise FileNotFoundError(f"Grader not found: {grader_id}")
+        shutil.rmtree(folder)
+
+    def _persist(self, meta: GraderMeta) -> None:
+        folder = settings.graders_dir / meta.id
+        folder.mkdir(parents=True, exist_ok=True)
+        _write_json(folder / "meta.json", meta.model_dump(mode="json"))
+
+    @staticmethod
+    def _normalize_kind(kind: str) -> str:
+        value = (kind or "openai").strip().lower()
+        if value not in {"openai", "http"}:
+            raise ValueError("kind must be openai or http")
+        return value
+
+
 config_store = ConfigStore()
 run_store = RunStore()
+grader_store = GraderStore()

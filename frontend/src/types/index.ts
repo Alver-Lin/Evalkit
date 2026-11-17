@@ -96,6 +96,9 @@ export interface ProviderProbeRequest {
   organization?: string
   /** HTTP method for custom HTTP providers (e.g. POST). */
   method?: string
+  headers?: Record<string, string>
+  body?: string
+  timeout_sec?: number
 }
 
 export interface ProviderProbeResponse {
@@ -106,4 +109,49 @@ export interface ProviderProbeResponse {
   model?: string | null
   latency_ms?: number | null
   details?: Record<string, unknown> | null
+  status_code?: number | null
+  sample_text?: string | null
+  content_type?: string | null
+}
+
+export type GraderKind = 'openai' | 'http'
+
+export interface GraderHttpHeader {
+  key: string
+  value: string
+}
+
+export interface GraderMeta {
+  id: string
+  kind: GraderKind | string
+  name: string
+  description: string
+  provider_id: string
+  api_key: string
+  api_host: string
+  organization: string
+  enable_thinking: boolean
+  max_tokens?: number | null
+  http_method: string
+  timeout_sec?: number | null
+  headers: GraderHttpHeader[]
+  transform_response: string
+  created_at: string
+  updated_at: string
+}
+
+export type GraderPayload = {
+  kind: GraderKind
+  name: string
+  description?: string
+  provider_id: string
+  api_key?: string
+  api_host?: string
+  organization?: string
+  enable_thinking?: boolean
+  max_tokens?: number | null
+  http_method?: string
+  timeout_sec?: number | null
+  headers?: GraderHttpHeader[]
+  transform_response?: string
 }

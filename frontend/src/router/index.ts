@@ -20,6 +20,11 @@ const router = createRouter({
           name: 'run-detail',
           component: () => import('@/views/ReportView.vue'),
         },
+        {
+          path: 'graders',
+          name: 'graders',
+          component: () => import('@/views/GradersView.vue'),
+        },
       ],
     },
   ],
