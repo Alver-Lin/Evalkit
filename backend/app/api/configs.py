@@ -16,7 +16,13 @@ def list_configs() -> list[ConfigMeta]:
 @router.post("", response_model=ConfigMeta)
 def create_config(payload: ConfigCreate) -> ConfigMeta:
     try:
-        return config_store.create(payload.name, payload.description, payload.yaml_content)
+        return config_store.create(
+            payload.name,
+            payload.description,
+            payload.yaml_content,
+            max_concurrency=payload.max_concurrency,
+            cache=payload.cache,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -37,6 +43,8 @@ def update_config(config_id: str, payload: ConfigUpdate) -> ConfigMeta:
             name=payload.name,
             description=payload.description,
             yaml_content=payload.yaml_content,
+            max_concurrency=payload.max_concurrency,
+            cache=payload.cache,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

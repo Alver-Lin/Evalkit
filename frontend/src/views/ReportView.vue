@@ -165,10 +165,10 @@ function openDetail(row: ReportRow) {
   detailOpen.value = true
 }
 
-function shortPrompt(text: string, index: number) {
+function shortPrompt(text: string, index: number, maxLen = 96) {
   const oneLine = text.replace(/\s+/g, ' ').trim()
   if (!oneLine) return `提示词 ${index + 1}`
-  return oneLine.length > 8 ? `${oneLine.slice(0, 8)}...` : oneLine
+  return oneLine.length > maxLen ? `${oneLine.slice(0, maxLen)}...` : oneLine
 }
 
 const matrixColumns = computed<MatrixCol[]>(() => {
@@ -183,7 +183,7 @@ const matrixColumns = computed<MatrixCol[]>(() => {
       col = {
         key,
         prompt: row.prompt,
-        promptLabel: shortPrompt(row.prompt, promptOrder.indexOf(row.prompt)),
+        promptLabel: shortPrompt(row.prompt, promptOrder.indexOf(row.prompt), 120),
         provider: row.provider,
         pass: 0,
         fail: 0,
@@ -217,7 +217,7 @@ const promptOptions = computed(() => {
     if (!seen.has(col.prompt)) {
       const full = col.prompt.replace(/\s+/g, ' ').trim() || col.promptLabel
       seen.set(col.prompt, {
-        label: shortPrompt(full, 0),
+        label: shortPrompt(full, 0, 48),
         full,
       })
     }
@@ -288,7 +288,7 @@ const pagedMatrixRows = computed(() => {
 })
 
 const matrixScrollX = computed(
-  () => 180 + 220 + Math.max(visibleMatrixColumns.value.length, 1) * 280,
+  () => 180 + 220 + Math.max(visibleMatrixColumns.value.length, 1) * 360,
 )
 
 const matrixTableColumns = computed(() => {
@@ -299,7 +299,7 @@ const matrixTableColumns = computed(() => {
   const dynamic = visibleMatrixColumns.value.map((col) => ({
     title: col.provider,
     key: col.key,
-    width: 280,
+    width: 360,
   }))
   return [...fixed, ...dynamic]
 })
@@ -1197,9 +1197,11 @@ onUnmounted(() => {
   font-size: 11px;
   color: var(--ek-muted);
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
   cursor: default;
 }
 

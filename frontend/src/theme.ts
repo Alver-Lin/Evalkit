@@ -1,5 +1,6 @@
 import type { ThemeConfig } from 'ant-design-vue/es/config-provider/context'
 
+/** Keep in sync with styles/global.css semantic tokens. */
 export const appTheme: ThemeConfig = {
   token: {
     colorPrimary: '#0f766e',
@@ -13,9 +14,10 @@ export const appTheme: ThemeConfig = {
     colorBgContainer: '#ffffff',
     colorBgLayout: '#f5f7fa',
     borderRadius: 8,
-    fontFamily: '"IBM Plex Sans", "Segoe UI", sans-serif',
+    fontFamily: '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif',
     fontSize: 14,
     controlHeight: 32,
+    wireframe: false,
   },
   components: {
     Button: {
@@ -38,6 +40,9 @@ export const appTheme: ThemeConfig = {
       itemBorderRadius: 8,
       itemMarginInline: 8,
       iconSize: 16,
+    },
+    Drawer: {
+      paddingLG: 20,
     },
   },
 }

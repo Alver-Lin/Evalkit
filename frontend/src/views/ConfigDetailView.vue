@@ -116,6 +116,8 @@ async function load() {
     form.name = config.value.name
     form.description = config.value.description
     form.yaml_content = config.value.yaml_content
+    form.max_concurrency = config.value.max_concurrency ?? 2
+    form.cache = Boolean(config.value.cache)
     visual.value = yamlToVisual(form.yaml_content, form.description, graders.value)
     restoreProviderProbes(String(route.params.id), visual.value.providers)
     if (!form.description && visual.value.description) {
@@ -147,6 +149,8 @@ async function save(): Promise<boolean> {
       name: form.name,
       description: form.description,
       yaml_content: form.yaml_content,
+      max_concurrency: form.max_concurrency,
+      cache: form.cache,
     })
     persistProviderProbes(String(route.params.id), visual.value.providers)
     message.success('已保存')

@@ -7,6 +7,8 @@ export interface ConfigMeta {
   created_at: string
   updated_at: string
   yaml_content: string
+  max_concurrency?: number
+  cache?: boolean
 }
 
 export interface EvalRunSummary {

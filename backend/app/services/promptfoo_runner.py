@@ -10,6 +10,7 @@ from typing import Any
 from app.core.config import settings
 from app.models.schemas import EvalStatus
 from app.services.chinese_rubric import ensure_chinese_rubric_prompt
+from app.services.evalkit_asserts import ensure_evalkit_asserts
 from app.services.http_sse import ensure_http_sse_transform
 from app.services.report_builder import summarize_results
 from app.services.store import config_store, run_store
@@ -145,6 +146,8 @@ class PromptfooRunner:
         ensure_chinese_rubric_prompt(dest_yaml)
         # Default SSE parser for custom HTTP providers (kept out of user YAML).
         ensure_http_sse_transform(dest_yaml)
+        # Expand word-count + inject Thinking strip only when think is enabled.
+        ensure_evalkit_asserts(dest_yaml)
 
         for item in src.iterdir():
             if item.name in {"meta.json", "promptfooconfig.yaml"}:

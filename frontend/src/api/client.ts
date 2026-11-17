@@ -20,11 +20,22 @@ export const api = {
   getStats: () => http.get<DashboardStats>('/dashboard/stats').then((r) => r.data),
   listConfigs: () => http.get<ConfigMeta[]>('/configs').then((r) => r.data),
   getConfig: (id: string) => http.get<ConfigMeta>(`/configs/${id}`).then((r) => r.data),
-  createConfig: (payload: { name: string; description?: string; yaml_content: string }) =>
-    http.post<ConfigMeta>('/configs', payload).then((r) => r.data),
+  createConfig: (payload: {
+    name: string
+    description?: string
+    yaml_content: string
+    max_concurrency?: number
+    cache?: boolean
+  }) => http.post<ConfigMeta>('/configs', payload).then((r) => r.data),
   updateConfig: (
     id: string,
-    payload: Partial<{ name: string; description: string; yaml_content: string }>,
+    payload: Partial<{
+      name: string
+      description: string
+      yaml_content: string
+      max_concurrency: number
+      cache: boolean
+    }>,
   ) => http.put<ConfigMeta>(`/configs/${id}`, payload).then((r) => r.data),
   deleteConfig: (id: string) => http.delete(`/configs/${id}`).then((r) => r.data),
   listRuns: () => http.get<EvalRunSummary[]>('/runs').then((r) => r.data),

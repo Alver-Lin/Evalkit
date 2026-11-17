@@ -44,7 +44,14 @@ class ConfigStore:
     def _sanitize_yaml(yaml_content: str) -> str:
         return strip_evalkit_rubric_prompt_text(yaml_content)
 
-    def create(self, name: str, description: str, yaml_content: str) -> ConfigMeta:
+    def create(
+        self,
+        name: str,
+        description: str,
+        yaml_content: str,
+        max_concurrency: int = 2,
+        cache: bool = False,
+    ) -> ConfigMeta:
         yaml_content = self._sanitize_yaml(yaml_content)
         self._validate_yaml(yaml_content)
         config_id = uuid.uuid4().hex[:12]
@@ -56,6 +63,8 @@ class ConfigStore:
             created_at=now,
             updated_at=now,
             yaml_content=yaml_content,
+            max_concurrency=max_concurrency,
+            cache=cache,
         )
         self._persist(meta)
         return meta
@@ -66,6 +75,8 @@ class ConfigStore:
         name: Optional[str] = None,
         description: Optional[str] = None,
         yaml_content: Optional[str] = None,
+        max_concurrency: Optional[int] = None,
+        cache: Optional[bool] = None,
     ) -> ConfigMeta:
         meta = self.get(config_id)
         if name is not None:
@@ -76,6 +87,10 @@ class ConfigStore:
             yaml_content = self._sanitize_yaml(yaml_content)
             self._validate_yaml(yaml_content)
             meta.yaml_content = yaml_content
+        if max_concurrency is not None:
+            meta.max_concurrency = max_concurrency
+        if cache is not None:
+            meta.cache = cache
         meta.updated_at = _now()
         self._persist(meta)
         return meta

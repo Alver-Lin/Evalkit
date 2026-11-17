@@ -89,7 +89,7 @@ export const assertCategories: Array<{
         valuePlaceholder: '多项用逗号分隔，或 JSON 数组',
       },
       {
-        // Visual type; serialized as javascript char-count (CN/EN/digits each = 1).
+        // Declarative in YAML; expanded to JS char-count at run time (CN/EN/digits each = 1).
         value: 'word-count',
         label: '字符数',
         hasValue: false,

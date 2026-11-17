@@ -188,19 +188,13 @@ function toProviderYaml(provider: VisualProvider): Record<string, unknown> | nul
 }
 
 /**
- * Strip promptfoo's `Thinking: ...` prefix before assertions run.
- * Must be a single-line expression (promptfoo wraps it as `return <expr>`).
- */
-const STRIP_THINKING_TRANSFORM =
-  '(() => { const t = String(output ?? ""); if (!/^\\s*Thinking\\s*:/i.test(t)) return t; const parts = t.trim().split(/\\n\\s*\\n\\s*\\n+/).map((s) => s.trim()).filter(Boolean); if (parts.length >= 2) return parts[parts.length - 1]; const paras = t.trim().split(/\\n\\s*\\n+/).map((s) => s.trim()).filter(Boolean); return paras.length >= 2 ? paras[paras.length - 1] : t; })()'
-
-const CHAR_COUNT_MARKER = '/* evalkit:char-count */'
-
-/**
  * EvalKit injects Chinese rubricPrompt only at run time (backend), not into
  * user-facing YAML. This marker detects our default so we can strip old copies.
  */
 const EVALKIT_RUBRIC_MARKER = '你是评分助手，根据用户给定的评分标准（rubric）评判模型输出。'
+
+/** Detect legacy JS char-count asserts written before declarative word-count. */
+const CHAR_COUNT_MARKER = '/* evalkit:char-count */'
 
 function isEvalkitChineseRubricPrompt(raw: unknown): boolean {
   if (raw == null || raw === '') return false
@@ -238,27 +232,8 @@ function stripEvalkitRubricPrompt(
   return next
 }
 
-/** Build JS assertion: CN/EN/digits/punctuation each count as 1; whitespace ignored. */
-function buildCharCountScript(min: number | null, max: number | null, negated: boolean): string {
-  const minLit = min == null ? 'null' : String(min)
-  const maxLit = max == null ? 'null' : String(max)
-  const passExpr = negated ? '!inRange' : 'inRange'
-  return [
-    CHAR_COUNT_MARKER,
-    "const text = String(output ?? '').replace(/\\s/g, '');",
-    'const n = [...text].length;',
-    `const min = ${minLit};`,
-    `const max = ${maxLit};`,
-    'const inRange = (min == null || n >= min) && (max == null || n <= max);',
-    `const pass = ${passExpr};`,
-    'if (pass) return true;',
-    "const rangeLabel = min != null && max != null ? (min + '-' + max) : min != null ? ('>=' + min) : ('<=' + max);",
-    "return { pass: false, score: 0, reason: '字符数 ' + n + ' 不在范围 ' + rangeLabel };",
-  ].join('\n')
-}
-
 function parseCharCountScript(script: string): { min: number | null; max: number | null } | null {
-  if (!script.includes('evalkit:char-count')) return null
+  if (!script.includes(CHAR_COUNT_MARKER) && !script.includes('evalkit:char-count')) return null
   const minMatch = script.match(/\bconst min = (null|\d+)\s*;/)
   const maxMatch = script.match(/\bconst max = (null|\d+)\s*;/)
   if (!minMatch || !maxMatch) return null
@@ -295,13 +270,14 @@ function serializeOneAssert(
   // Value required (with or without threshold)
   if (showsValue && !meta.valueOptional && value === undefined) return null
 
-  // Replace promptfoo word-count with JS char-count (supports Chinese).
+  // Declarative char-count in saved YAML; expanded to javascript at run time.
   if (type === 'word-count') {
-    return {
-      type: 'javascript',
-      value: buildCharCountScript(min, max, Boolean(assert.negated)),
-      transform: STRIP_THINKING_TRANSFORM,
+    const out: Record<string, unknown> = {
+      type: assert.negated ? 'not-word-count' : 'word-count',
     }
+    if (min != null) out.min = min
+    if (max != null) out.max = max
+    return out
   }
 
   const out: Record<string, unknown> = {
@@ -313,8 +289,7 @@ function serializeOneAssert(
   }
   if (value !== undefined) out.value = value
   if (threshold !== undefined) out.threshold = threshold
-  // Grade final answer only; report UI still shows Thinking separately from raw output.
-  out.transform = STRIP_THINKING_TRANSFORM
+  // Thinking strip transform is injected at run time only when think is enabled.
 
   if (meta.needsGrader && assert.graderId) {
     const grader = findGraderById(graders, assert.graderId)
@@ -414,48 +389,115 @@ function probeStorageKey(configId: string) {
   return `evalkit.providerProbe.${configId}`
 }
 
+/** Cap sample body so localStorage quota is less likely to fail. */
+const PROBE_SAMPLE_MAX_CHARS = 120_000
+
+type StoredProviderProbe = ProviderProbe & {
+  sample?: {
+    text: string
+    statusCode?: number | null
+    latencyMs?: number | null
+    contentType?: string | null
+  }
+}
+
 export function persistProviderProbes(configId: string, providers: VisualProvider[]) {
   if (!configId || typeof localStorage === 'undefined') return
-  const map: Record<string, ProviderProbe> = {}
+  const map: Record<string, StoredProviderProbe> = {}
   for (const provider of providers) {
+    const fp = providerProbeFingerprint(provider)
     const view = providerProbeView(provider)
-    if (!view || !provider.probe) continue
-    map[provider.probe.fingerprint] = {
-      status: view.status,
-      message: view.message,
-      fingerprint: provider.probe.fingerprint,
+    const sample =
+      provider.probeSample && provider.probeSample.fingerprint === fp ? provider.probeSample : null
+    if (!view && !sample) continue
+    const entry: StoredProviderProbe = view
+      ? {
+          status: view.status,
+          message: view.message,
+          fingerprint: fp,
+        }
+      : {
+          status: 'success',
+          message: '已保存测试响应',
+          fingerprint: fp,
+        }
+    if (sample?.text) {
+      entry.sample = {
+        text: sample.text.slice(0, PROBE_SAMPLE_MAX_CHARS),
+        statusCode: sample.statusCode ?? null,
+        latencyMs: sample.latencyMs ?? null,
+        contentType: sample.contentType ?? null,
+      }
     }
+    map[fp] = entry
   }
   try {
     if (Object.keys(map).length) localStorage.setItem(probeStorageKey(configId), JSON.stringify(map))
     else localStorage.removeItem(probeStorageKey(configId))
   } catch {
-    // ignore quota / private mode
+    // Quota exceeded: retry without sample bodies.
+    try {
+      const slim: Record<string, StoredProviderProbe> = {}
+      for (const [key, value] of Object.entries(map)) {
+        slim[key] = {
+          status: value.status,
+          message: value.message,
+          fingerprint: value.fingerprint,
+        }
+      }
+      if (Object.keys(slim).length) localStorage.setItem(probeStorageKey(configId), JSON.stringify(slim))
+    } catch {
+      // ignore private mode
+    }
   }
 }
 
 export function restoreProviderProbes(configId: string, providers: VisualProvider[]) {
   if (!configId || typeof localStorage === 'undefined') return
-  let map: Record<string, ProviderProbe> = {}
+  let map: Record<string, StoredProviderProbe> = {}
   try {
     const raw = localStorage.getItem(probeStorageKey(configId))
     if (!raw) return
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return
-    map = parsed as Record<string, ProviderProbe>
+    map = parsed as Record<string, StoredProviderProbe>
   } catch {
     return
   }
   for (const provider of providers) {
     const fp = providerProbeFingerprint(provider)
     const saved = map[fp]
-    if (!saved || (saved.status !== 'success' && saved.status !== 'error')) continue
-    provider.probe = {
-      status: saved.status,
-      message: String(saved.message || (saved.status === 'success' ? '连接成功' : '连接失败')),
-      fingerprint: fp,
+    if (!saved) continue
+    if (saved.status === 'success' || saved.status === 'error') {
+      provider.probe = {
+        status: saved.status,
+        message: String(saved.message || (saved.status === 'success' ? '连接成功' : '连接失败')),
+        fingerprint: fp,
+      }
+    }
+    if (saved.sample?.text) {
+      provider.probeSample = {
+        text: String(saved.sample.text),
+        statusCode: saved.sample.statusCode ?? null,
+        latencyMs: saved.sample.latencyMs ?? null,
+        contentType: saved.sample.contentType ?? null,
+        fingerprint: fp,
+      }
     }
   }
+}
+
+/** True when YAML/visual extract settings are worth showing without a fresh probe sample. */
+export function providerHasSavedExtract(provider: VisualProvider): boolean {
+  const cfg = ensureProviderExtract(provider)
+  if (cfg.mode === 'code') return true
+  if (cfg.strategy === 'fields') return true
+  if (cfg.clean.length) return true
+  if (cfg.source === 'json') return true
+  if (cfg.pick === 'last') return true
+  const transform = (provider.transformResponse || '').trim()
+  if (!transform) return false
+  return transform !== DEFAULT_SSE_TRANSFORM_RESPONSE.trim()
 }
 
 /** Default SSE-friendly transform for custom HTTP providers. */
@@ -476,6 +518,8 @@ export type ResponseExtractStrategy = 'raw' | 'fields'
 export type ResponseExtractPick = 'all' | 'last'
 export type ResponseExtractJoin = '\n' | ' ' | ''
 export type ResponseExtractMode = 'visual' | 'code'
+/** Post-extract text cleaners (multi-select). */
+export type ResponseExtractCleanOp = 'trim' | 'spaces' | 'newlines' | 'symbols'
 
 /** UI-friendly response extraction; compiled into transformResponse. */
 export interface ResponseExtractConfig {
@@ -485,7 +529,18 @@ export interface ResponseExtractConfig {
   fields: string[]
   joinWith: ResponseExtractJoin
   pick: ResponseExtractPick
+  clean: ResponseExtractCleanOp[]
 }
+
+export const RESPONSE_EXTRACT_CLEAN_OPTIONS: Array<{
+  value: ResponseExtractCleanOp
+  label: string
+}> = [
+  { value: 'trim', label: '去首尾空白' },
+  { value: 'spaces', label: '去除空格' },
+  { value: 'newlines', label: '去除换行' },
+  { value: 'symbols', label: '去除符号' },
+]
 
 export const RESPONSE_EXTRACT_FIELD_PRESETS = [
   'answer',
@@ -506,10 +561,12 @@ export function defaultResponseExtract(): ResponseExtractConfig {
     fields: [],
     joinWith: '\n',
     pick: 'all',
+    clean: [],
   }
 }
 
 const EXTRACT_MARKER_RE = /\/\*\s*evalkit-extract:(\{[\s\S]*?\})\s*\*\//
+const CLEAN_OP_SET = new Set<ResponseExtractCleanOp>(['trim', 'spaces', 'newlines', 'symbols'])
 
 function normalizeExtractFields(fields: unknown): string[] {
   if (!Array.isArray(fields)) return []
@@ -522,6 +579,33 @@ function normalizeExtractFields(fields: unknown): string[] {
     if (!name || seen.has(name)) continue
     seen.add(name)
     out.push(name)
+  }
+  return out
+}
+
+function normalizeExtractClean(clean: unknown): ResponseExtractCleanOp[] {
+  if (!Array.isArray(clean)) return []
+  const out: ResponseExtractCleanOp[] = []
+  const seen = new Set<ResponseExtractCleanOp>()
+  for (const item of clean) {
+    const op = String(item || '').trim() as ResponseExtractCleanOp
+    if (!CLEAN_OP_SET.has(op) || seen.has(op)) continue
+    seen.add(op)
+    out.push(op)
+  }
+  return out
+}
+
+/** Apply visual clean ops to extracted text (preview + transform share this logic). */
+export function applyExtractClean(text: string, clean: ResponseExtractCleanOp[] = []): string {
+  let out = String(text ?? '')
+  if (!clean.length) return out
+  if (clean.includes('trim')) out = out.trim()
+  if (clean.includes('spaces')) out = out.replace(/[ \t\u00a0\u3000]+/g, '')
+  if (clean.includes('newlines')) out = out.replace(/[\r\n]+/g, '')
+  if (clean.includes('symbols')) {
+    // Keep letters / numbers / marks / whitespace; drop punctuation & symbols.
+    out = out.replace(/[^\p{L}\p{N}\p{M}\s]/gu, '')
   }
   return out
 }
@@ -543,6 +627,7 @@ export function normalizeResponseExtract(raw: unknown): ResponseExtractConfig {
     fields: normalizeExtractFields(obj.fields),
     joinWith,
     pick,
+    clean: normalizeExtractClean(obj.clean),
   }
 }
 
@@ -553,7 +638,20 @@ function extractMarkerPayload(config: ResponseExtractConfig): string {
     fields: config.fields,
     joinWith: config.joinWith,
     pick: config.pick,
+    clean: config.clean,
   })
+}
+
+function buildCleanSnippet(clean: ResponseExtractCleanOp[]): string {
+  if (!clean.length) return 'return String(value ?? "");'
+  const flags = JSON.stringify(clean)
+  return `const __clean = ${flags};
+  let __out = String(value ?? "");
+  if (__clean.includes('trim')) __out = __out.trim();
+  if (__clean.includes('spaces')) __out = __out.replace(/[ \\t\\u00a0\\u3000]+/g, '');
+  if (__clean.includes('newlines')) __out = __out.replace(/[\\r\\n]+/g, '');
+  if (__clean.includes('symbols')) __out = __out.replace(/[^\\p{L}\\p{N}\\p{M}\\s]/gu, '');
+  return __out;`
 }
 
 /** Build promptfoo transformResponse from visual extract settings. */
@@ -563,7 +661,8 @@ export function buildTransformResponse(config: ResponseExtractConfig): string {
     normalized.source === 'sse' &&
     normalized.strategy === 'raw' &&
     normalized.pick === 'all' &&
-    normalized.joinWith === '\n'
+    normalized.joinWith === '\n' &&
+    !normalized.clean.length
   ) {
     return DEFAULT_SSE_TRANSFORM_RESPONSE
   }
@@ -573,6 +672,7 @@ export function buildTransformResponse(config: ResponseExtractConfig): string {
   const joinLit = JSON.stringify(normalized.joinWith)
   const pickLast = normalized.pick === 'last' ? 'true' : 'false'
   const useFields = normalized.strategy === 'fields' ? 'true' : 'false'
+  const cleanBody = buildCleanSnippet(normalized.clean)
 
   if (normalized.source === 'json') {
     return `(json, text) => {
@@ -584,16 +684,20 @@ export function buildTransformResponse(config: ResponseExtractConfig): string {
   if (obj == null || typeof obj !== 'object') {
     try { obj = JSON.parse(String(text || '')); } catch { obj = null; }
   }
+  let value = '';
   if (!useFields) {
-    return obj != null ? JSON.stringify(obj) : String(text || '');
+    value = obj != null ? JSON.stringify(obj) : String(text || '');
+  } else if (!obj || typeof obj !== 'object') {
+    value = String(text || '');
+  } else {
+    const parts = fields.map((f) => {
+      const v = obj[f];
+      if (v == null || v === '') return '';
+      return typeof v === 'string' ? v : JSON.stringify(v);
+    }).filter(Boolean);
+    value = parts.join(joinWith) || String(text || '');
   }
-  if (!obj || typeof obj !== 'object') return String(text || '');
-  const parts = fields.map((f) => {
-    const v = obj[f];
-    if (v == null || v === '') return '';
-    return typeof v === 'string' ? v : JSON.stringify(v);
-  }).filter(Boolean);
-  return parts.join(joinWith) || String(text || '');
+  ${cleanBody}
 }`
   }
 
@@ -627,7 +731,8 @@ export function buildTransformResponse(config: ResponseExtractConfig): string {
     if (pickLast) values.length = 0;
     values.push(piece);
   }
-  return values.join(joinWith) || text;
+  let value = values.join(joinWith) || text;
+  ${cleanBody}
 }`
 }
 
@@ -653,6 +758,8 @@ export function parseResponseExtractFromTransform(transform: string | null | und
 export function ensureProviderExtract(provider: VisualProvider): ResponseExtractConfig {
   if (!provider.responseExtract) {
     provider.responseExtract = parseResponseExtractFromTransform(provider.transformResponse)
+  } else {
+    provider.responseExtract = normalizeResponseExtract(provider.responseExtract)
   }
   return provider.responseExtract
 }
@@ -742,6 +849,7 @@ export function previewExtractOutput(
   const text = String(sampleText || '')
   if (!text) return ''
 
+  let extracted = ''
   if (cfg.source === 'json') {
     let obj: unknown = null
     try {
@@ -750,43 +858,46 @@ export function previewExtractOutput(
       obj = null
     }
     if (cfg.strategy !== 'fields') {
-      return obj != null ? fieldValueText(obj) : text
-    }
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return text
-    const parts = cfg.fields
-      .map((f) => fieldValueText((obj as Record<string, unknown>)[f]))
-      .filter(Boolean)
-    return parts.join(cfg.joinWith) || text
-  }
-
-  const values: string[] = []
-  for (const line of text.split('\n')) {
-    const t = line.trim()
-    if (!t.startsWith('data:')) continue
-    const raw = t.replace(/^data:\s?/, '')
-    if (!raw || raw === '[DONE]') continue
-    let piece = ''
-    if (cfg.strategy === 'fields') {
-      let obj: Record<string, unknown> | null = null
-      try {
-        const parsed = JSON.parse(raw)
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          obj = parsed as Record<string, unknown>
-        }
-      } catch {
-        obj = null
-      }
-      if (!obj) continue
-      const parts = cfg.fields.map((f) => fieldValueText(obj![f])).filter(Boolean)
-      if (!parts.length) continue
-      piece = parts.join(cfg.joinWith)
+      extracted = obj != null ? fieldValueText(obj) : text
+    } else if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+      extracted = text
     } else {
-      piece = raw
+      const parts = cfg.fields
+        .map((f) => fieldValueText((obj as Record<string, unknown>)[f]))
+        .filter(Boolean)
+      extracted = parts.join(cfg.joinWith) || text
     }
-    if (cfg.pick === 'last') values.length = 0
-    values.push(piece)
+  } else {
+    const values: string[] = []
+    for (const line of text.split('\n')) {
+      const t = line.trim()
+      if (!t.startsWith('data:')) continue
+      const raw = t.replace(/^data:\s?/, '')
+      if (!raw || raw === '[DONE]') continue
+      let piece = ''
+      if (cfg.strategy === 'fields') {
+        let obj: Record<string, unknown> | null = null
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            obj = parsed as Record<string, unknown>
+          }
+        } catch {
+          obj = null
+        }
+        if (!obj) continue
+        const parts = cfg.fields.map((f) => fieldValueText(obj![f])).filter(Boolean)
+        if (!parts.length) continue
+        piece = parts.join(cfg.joinWith)
+      } else {
+        piece = raw
+      }
+      if (cfg.pick === 'last') values.length = 0
+      values.push(piece)
+    }
+    extracted = values.join(cfg.joinWith) || text
   }
-  return values.join(cfg.joinWith) || text
+  return applyExtractClean(extracted, cfg.clean)
 }
 
 export function guessExtractSource(sampleText: string): ResponseExtractSource {

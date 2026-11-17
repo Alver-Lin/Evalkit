@@ -104,28 +104,28 @@ function go(key: string) {
 
 <style scoped>
 .shell {
-  min-height: 100vh;
-  background: var(--ek-bg);
+  min-block-size: 100vh;
+  background: var(--surface-bg, var(--ek-bg));
 }
 
 .sider {
-  border-right: 1px solid var(--ek-border);
-  background: var(--ek-surface) !important;
+  border-inline-end: 1px solid var(--ui-border, var(--ek-border));
+  background: var(--surface-raised, var(--ek-surface)) !important;
 }
 
 .brand {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 20px 16px 16px;
+  padding: var(--space-5, 20px) var(--space-4, 16px) var(--space-4, 16px);
   cursor: pointer;
 }
 
 .mark {
-  width: 28px;
-  height: 28px;
+  inline-size: 28px;
+  block-size: 28px;
   flex: 0 0 28px;
-  color: var(--ek-accent);
+  color: var(--color-accent, var(--ek-accent));
   line-height: 0;
 }
 
@@ -141,33 +141,34 @@ function go(key: string) {
 }
 
 .title {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: var(--ek-ink);
+  color: var(--color-ink, var(--ek-ink));
   line-height: 1.2;
 }
 
 .subtitle {
-  margin-top: 2px;
-  color: var(--ek-muted);
-  font-size: 12px;
-  line-height: 16px;
+  margin-block-start: 2px;
+  color: var(--color-muted, var(--ek-muted));
+  font-size: 0.75rem;
+  line-height: 1.333;
 }
 
 .nav {
   border-inline-end: none !important;
-  padding: 4px 0 16px;
+  padding-block: var(--space-1, 4px) var(--space-4, 16px);
+  padding-inline: 0;
 }
 
 .nav :deep(.ant-menu-item) {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-inline: 8px;
-  width: calc(100% - 16px);
-  border-radius: 8px;
-  height: 40px;
+  margin-inline: var(--space-2, 8px);
+  inline-size: calc(100% - 16px);
+  border-radius: var(--ui-radius-control, 8px);
+  block-size: 40px;
   line-height: 40px;
 }
 
@@ -178,32 +179,32 @@ function go(key: string) {
 }
 
 .nav-icon {
-  width: 16px;
-  height: 16px;
+  inline-size: 16px;
+  block-size: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 16px;
-  color: var(--ek-muted);
+  color: var(--color-muted, var(--ek-muted));
 }
 
 .nav-icon svg {
-  width: 16px;
-  height: 16px;
+  inline-size: 16px;
+  block-size: 16px;
   display: block;
 }
 
 .nav :deep(.ant-menu-item-selected) {
-  color: var(--ek-accent-ink);
-  background: rgba(15, 118, 110, 0.08);
+  color: var(--color-accent-ink, var(--ek-accent-ink));
+  background: var(--color-accent-soft, rgba(15, 118, 110, 0.08));
 }
 
 .nav :deep(.ant-menu-item-selected .nav-icon) {
-  color: var(--ek-accent-ink);
+  color: var(--color-accent-ink, var(--ek-accent-ink));
 }
 
-.nav :deep(.ant-menu-item:hover .nav-icon) {
-  color: var(--ek-accent);
+.nav :deep(.ant-menu-item:hover:not(.ant-menu-item-disabled) .nav-icon) {
+  color: var(--color-accent, var(--ek-accent));
 }
 
 .nav :deep(.ant-menu-item-selected::after) {
@@ -211,18 +212,19 @@ function go(key: string) {
 }
 
 .main {
-  background: var(--ek-bg);
-  min-height: 100vh;
-  min-width: 0;
+  background: var(--surface-bg, var(--ek-bg));
+  min-block-size: 100vh;
+  min-inline-size: 0;
   flex: 1;
 }
 
 .content {
-  margin: 24px;
-  padding: 0 4px;
-  min-height: calc(100vh - 48px);
-  height: calc(100vh - 48px);
-  max-height: calc(100vh - 48px);
+  margin: var(--space-6, 24px);
+  padding-block: 0;
+  padding-inline: var(--space-1, 4px);
+  min-block-size: calc(100vh - 48px);
+  block-size: calc(100vh - 48px);
+  max-block-size: calc(100vh - 48px);
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;

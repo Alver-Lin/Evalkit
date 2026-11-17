@@ -5,7 +5,9 @@ import {
   ApiOutlined,
   CloudUploadOutlined,
   DeleteOutlined,
+  DownOutlined,
   PlusOutlined,
+  UpOutlined,
   UploadOutlined,
 } from '@ant-design/icons-vue'
 import type { UploadFile, UploadProps } from 'ant-design-vue'
@@ -34,13 +36,14 @@ import {
   previewExtractOutput,
   providerHasExtraFields,
   providerHasId,
+  providerHasSavedExtract,
   providerProbeFingerprint,
   providerProbeView,
+  RESPONSE_EXTRACT_CLEAN_OPTIONS,
   type ProviderKind,
   type ProviderProbeStatus,
+  type ResponseExtractCleanOp,
   type ResponseExtractConfig,
-  type ResponseExtractJoin,
-  type ResponseExtractPick,
   type ResponseExtractSource,
   type ResponseExtractStrategy,
   type VisualAssert,
@@ -60,12 +63,9 @@ const props = defineProps<{
 
 const varSyntax = '{{variable}}'
 const promptVarSyntax = '{{prompt}}'
-const httpPromptPlaceholder = `{
-  "message": "{{message}}",
-  "scenario": null,
-  "client_id": "",
-  "session_id": "",
-  "selected_kbs": ["public_kingbase"]
+const httpPromptPlaceholder = `在此填写请求 Body JSON，例如：
+{
+  "message": "{{message}}"
 }`
 const hasHttpProvider = computed(() =>
   model.value.providers.some((provider) => inferProviderKind(provider) === 'http'),
@@ -279,11 +279,11 @@ function setExtractMode(provider: VisualProvider, mode: 'visual' | 'code') {
 }
 
 function setExtractSource(provider: VisualProvider, source: ResponseExtractSource) {
-  applyResponseExtract(provider, { source })
+  applyResponseExtract(provider, { source, pick: 'all' })
 }
 
 function setExtractStrategy(provider: VisualProvider, strategy: ResponseExtractStrategy) {
-  const patch: Partial<ResponseExtractConfig> = { strategy }
+  const patch: Partial<ResponseExtractConfig> = { strategy, pick: 'all' }
   if (strategy === 'fields' && !extractOf(provider).fields.length) {
     const discovered = discoveredFieldsOf(provider)
     patch.fields = discovered.length ? discovered.slice(0, 3) : ['answer', 'content', 'sql']
@@ -291,12 +291,10 @@ function setExtractStrategy(provider: VisualProvider, strategy: ResponseExtractS
   applyResponseExtract(provider, patch)
 }
 
-function setExtractPick(provider: VisualProvider, pick: ResponseExtractPick) {
-  applyResponseExtract(provider, { pick })
-}
-
-function setExtractJoin(provider: VisualProvider, joinWith: ResponseExtractJoin) {
-  applyResponseExtract(provider, { joinWith })
+function toggleExtractClean(provider: VisualProvider, op: ResponseExtractCleanOp) {
+  const current = extractOf(provider).clean
+  const next = current.includes(op) ? current.filter((item) => item !== op) : [...current, op]
+  applyResponseExtract(provider, { clean: next, pick: 'all' })
 }
 
 function setExtractFields(provider: VisualProvider, fields: string[]) {
@@ -319,15 +317,19 @@ function toggleExtractField(provider: VisualProvider, field: string, checked: bo
 function extractRuleSummary(provider: VisualProvider): string {
   const cfg = extractOf(provider)
   if (cfg.mode === 'code') return '使用自定义 transformResponse 代码'
+  const cleanLabel = cfg.clean.length
+    ? cfg.clean
+        .map((op) => RESPONSE_EXTRACT_CLEAN_OPTIONS.find((item) => item.value === op)?.label || op)
+        .join('、')
+    : '无'
   if (cfg.strategy === 'raw') {
     return cfg.source === 'sse'
-      ? `SSE：拼接全部 data: 原始内容（分隔：${cfg.joinWith === '\n' ? '换行' : cfg.joinWith === ' ' ? '空格' : '无'}）`
-      : 'JSON：使用完整响应作为 output'
+      ? `SSE：原始 data 内容（数据清洗：${cleanLabel}）`
+      : `JSON：完整响应（数据清洗：${cleanLabel}）`
   }
   const fields = cfg.fields.length ? cfg.fields.join(' + ') : '（请勾选字段）'
-  const scope = cfg.source === 'sse' ? (cfg.pick === 'last' ? '仅最后一条 SSE' : '全部 SSE 事件') : 'JSON 响应'
-  const sep = cfg.joinWith === '\n' ? '换行' : cfg.joinWith === ' ' ? '空格' : '直接拼接'
-  return `${scope} → 字段 ${fields}（${sep}）`
+  const source = cfg.source === 'sse' ? 'SSE' : 'JSON'
+  return `${source} → 字段 ${fields}（数据清洗：${cleanLabel}）`
 }
 
 async function testProviderConnectivity(index: number) {
@@ -337,6 +339,10 @@ async function testProviderConnectivity(index: number) {
     message.warning(
       inferProviderKind(provider) === 'http' ? '请先填写 URL' : '请先填写 Provider ID',
     )
+    return
+  }
+  if (!model.value.tests.length) {
+    message.warning('请录入测试用例')
     return
   }
   probingIndex.value = index
@@ -362,14 +368,18 @@ async function testProviderConnectivity(index: number) {
         contentType: result.content_type,
         fingerprint,
       }
-      const source = guessExtractSource(result.sample_text)
-      const fields = discoverResponseFields(result.sample_text, source)
-      applyResponseExtract(provider, {
-        mode: 'visual',
-        source,
-        strategy: fields.length ? 'fields' : 'raw',
-        fields: fields.length ? fields.slice(0, Math.min(3, fields.length)) : [],
-      })
+      // Only auto-suggest extract when nothing meaningful was saved yet.
+      if (!providerHasSavedExtract(provider)) {
+        const source = guessExtractSource(result.sample_text)
+        const fields = discoverResponseFields(result.sample_text, source)
+        applyResponseExtract(provider, {
+          mode: 'visual',
+          source,
+          strategy: fields.length ? 'fields' : 'raw',
+          fields: fields.length ? fields.slice(0, Math.min(3, fields.length)) : [],
+        })
+      }
+      extractExpandedByIndex.value[index] = true
     } else if (provider.probeSample?.fingerprint === fingerprint) {
       // keep previous sample
     } else {
@@ -391,6 +401,16 @@ async function testProviderConnectivity(index: number) {
 }
 
 const graders = ref<GraderMeta[]>([])
+/** Visual extract panel expanded by provider index; default collapsed. */
+const extractExpandedByIndex = ref<Record<number, boolean>>({})
+
+function isExtractExpanded(index: number) {
+  return extractExpandedByIndex.value[index] === true
+}
+
+function toggleExtractExpanded(index: number) {
+  extractExpandedByIndex.value[index] = !isExtractExpanded(index)
+}
 
 const graderProviderOptions = computed(() =>
   graders.value.map((grader) => ({
@@ -554,7 +574,10 @@ async function submitTestImport() {
       return
     }
 
-    if (model.value.tests.length === 1 && isBlankTest(0)) {
+    if (
+      !model.value.tests.length ||
+      (model.value.tests.length === 1 && isBlankTest(0))
+    ) {
       model.value.tests = imported
     } else {
       model.value.tests.push(...imported)
@@ -575,9 +598,12 @@ async function submitTestImport() {
 }
 
 function removeTest(index: number) {
-  if (model.value.tests.length <= 1) return
+  if (index < 0 || index >= model.value.tests.length) return
   model.value.tests.splice(index, 1)
-  if (detailOpen.value) {
+  if (!model.value.tests.length) {
+    detailOpen.value = false
+    detailIndex.value = 0
+  } else if (detailOpen.value) {
     if (detailIndex.value > index) {
       detailIndex.value -= 1
     } else if (detailIndex.value >= model.value.tests.length) {
@@ -618,6 +644,11 @@ function assertTypeLabel(assert: VisualAssert) {
 function testAssertPreview(asserts: VisualAssert[]) {
   if (!asserts?.length) return '—'
   return asserts.map((a) => assertTypeLabel(a)).join(', ')
+}
+
+function truncateText(text: string, maxLen = 10) {
+  if (!text || text === '—') return text
+  return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text
 }
 
 function showsValue(assert: VisualAssert) {
@@ -935,19 +966,33 @@ function removeDefaultAssert(index: number) {
               <div class="field span-full extract-section">
                 <div class="extract-head">
                   <div class="extract-title-wrap">
-                    <label>响应提取（评测 output）</label>
-                    <p class="field-hint">
-                      先点右上角「测试连通」，用真实响应勾选字段并预览最终 output
-                    </p>
+                    <label>响应提取</label>
                   </div>
-                  <a-radio-group
-                    size="small"
-                    :value="extractOf(model.providers[index]).mode"
-                    @update:value="(v: string) => setExtractMode(model.providers[index], v as 'visual' | 'code')"
-                  >
-                    <a-radio-button value="visual">可视化</a-radio-button>
-                    <a-radio-button value="code">高级代码</a-radio-button>
-                  </a-radio-group>
+                  <div class="extract-head-actions">
+                    <a-radio-group
+                      size="small"
+                      :value="extractOf(model.providers[index]).mode"
+                      @update:value="(v: string) => setExtractMode(model.providers[index], v as 'visual' | 'code')"
+                    >
+                      <a-radio-button value="visual">可视化</a-radio-button>
+                      <a-radio-button value="code">高级代码</a-radio-button>
+                    </a-radio-group>
+                    <a-button
+                      v-if="
+                        extractOf(model.providers[index]).mode === 'visual' &&
+                        (probeSampleOf(model.providers[index]) ||
+                          providerHasSavedExtract(model.providers[index]))
+                      "
+                      type="text"
+                      size="small"
+                      class="extract-toggle-btn"
+                      @click="toggleExtractExpanded(index)"
+                    >
+                      {{ isExtractExpanded(index) ? '收起' : '展开' }}
+                      <UpOutlined v-if="isExtractExpanded(index)" />
+                      <DownOutlined v-else />
+                    </a-button>
+                  </div>
                 </div>
 
                 <div
@@ -967,132 +1012,138 @@ function removeDefaultAssert(index: number) {
 
                 <template v-else>
                   <div
-                    v-if="!probeSampleOf(model.providers[index])"
+                    v-if="
+                      !probeSampleOf(model.providers[index]) &&
+                      !providerHasSavedExtract(model.providers[index])
+                    "
                     class="extract-empty"
                   >
                     <p>尚未获取测试响应。请先「测试连通」，成功后将在此展示原始结果，并支持勾选字段预览 output。</p>
                   </div>
 
                   <template v-else>
-                    <div class="sample-block">
-                      <div class="sample-meta">
-                        <span class="sample-label">测试响应</span>
-                        <span class="mono muted">
-                          <template v-if="probeSampleOf(model.providers[index])!.statusCode != null">
-                            HTTP {{ probeSampleOf(model.providers[index])!.statusCode }}
-                          </template>
-                          <template v-if="probeSampleOf(model.providers[index])!.latencyMs != null">
-                            · {{ probeSampleOf(model.providers[index])!.latencyMs }}ms
-                          </template>
-                        </span>
+                    <button
+                      v-if="!isExtractExpanded(index)"
+                      type="button"
+                      class="extract-collapsed mono"
+                      @click="toggleExtractExpanded(index)"
+                    >
+                      <span class="extract-collapsed-text">{{ extractRuleSummary(model.providers[index]) }}</span>
+                      <DownOutlined class="extract-collapsed-icon" />
+                    </button>
+
+                    <template v-else>
+                      <div v-if="probeSampleOf(model.providers[index])" class="sample-block">
+                        <div class="sample-meta">
+                          <span class="sample-label">测试响应</span>
+                          <span class="mono muted">
+                            <template v-if="probeSampleOf(model.providers[index])!.statusCode != null">
+                              HTTP {{ probeSampleOf(model.providers[index])!.statusCode }}
+                            </template>
+                            <template v-if="probeSampleOf(model.providers[index])!.latencyMs != null">
+                              · {{ probeSampleOf(model.providers[index])!.latencyMs }}ms
+                            </template>
+                          </span>
+                        </div>
+                        <pre class="sample-body mono">{{ probeSampleOf(model.providers[index])!.text }}</pre>
                       </div>
-                      <pre class="sample-body mono">{{ probeSampleOf(model.providers[index])!.text }}</pre>
-                    </div>
+                      <div v-else class="extract-empty">
+                        <p>已恢复保存的提取配置。重新「测试连通」可再次预览原始响应与 output。</p>
+                      </div>
 
-                    <div class="extract-panel">
-                      <div class="extract-options">
-                        <div class="extract-row">
-                          <span class="extract-label">响应格式</span>
-                          <a-radio-group
-                            class="extract-seg"
-                            size="small"
-                            :value="extractOf(model.providers[index]).source"
-                            @update:value="(v: string) => setExtractSource(model.providers[index], v as ResponseExtractSource)"
+                      <div class="extract-panel">
+                        <div class="extract-options">
+                          <div class="extract-row">
+                            <span class="extract-label">响应格式</span>
+                            <a-radio-group
+                              class="extract-seg"
+                              size="small"
+                              :value="extractOf(model.providers[index]).source"
+                              @update:value="(v: string) => setExtractSource(model.providers[index], v as ResponseExtractSource)"
+                            >
+                              <a-radio-button value="sse">SSE 流</a-radio-button>
+                              <a-radio-button value="json">整段 JSON</a-radio-button>
+                            </a-radio-group>
+                          </div>
+
+                          <div class="extract-row">
+                            <span class="extract-label">取值方式</span>
+                            <a-radio-group
+                              class="extract-seg"
+                              size="small"
+                              :value="extractOf(model.providers[index]).strategy"
+                              @update:value="(v: string) => setExtractStrategy(model.providers[index], v as ResponseExtractStrategy)"
+                            >
+                              <a-radio-button value="raw">原始内容</a-radio-button>
+                              <a-radio-button value="fields">选择字段拼接</a-radio-button>
+                            </a-radio-group>
+                          </div>
+
+                          <div
+                            v-if="extractOf(model.providers[index]).strategy === 'fields'"
+                            class="extract-fields"
                           >
-                            <a-radio-button value="sse">SSE 流</a-radio-button>
-                            <a-radio-button value="json">整段 JSON</a-radio-button>
-                          </a-radio-group>
-                        </div>
-
-                        <div class="extract-row">
-                          <span class="extract-label">取值方式</span>
-                          <a-radio-group
-                            class="extract-seg"
-                            size="small"
-                            :value="extractOf(model.providers[index]).strategy"
-                            @update:value="(v: string) => setExtractStrategy(model.providers[index], v as ResponseExtractStrategy)"
-                          >
-                            <a-radio-button value="raw">原始内容</a-radio-button>
-                            <a-radio-button value="fields">选择字段拼接</a-radio-button>
-                          </a-radio-group>
-                        </div>
-
-                        <div
-                          v-if="extractOf(model.providers[index]).strategy === 'fields'"
-                          class="extract-fields"
-                        >
-                          <span class="extract-label">输出字段</span>
-                          <div class="extract-fields-body">
-                            <div class="field-check-list">
-                              <label
-                                v-for="field in discoveredFieldsOf(model.providers[index])"
-                                :key="field"
-                                class="field-check mono"
-                              >
-                                <a-checkbox
-                                  :checked="extractOf(model.providers[index]).fields.includes(field)"
-                                  @update:checked="(v: boolean) => toggleExtractField(model.providers[index], field, v)"
-                                />
-                                {{ field }}
-                              </label>
-                              <p
-                                v-if="!discoveredFieldsOf(model.providers[index]).length"
-                                class="field-hint"
-                              >
-                                未解析到 JSON 字段，可改用「原始内容」或切换响应格式
-                              </p>
+                            <span class="extract-label">输出字段</span>
+                            <div class="extract-fields-body">
+                              <div class="field-check-list">
+                                <label
+                                  v-for="field in discoveredFieldsOf(model.providers[index])"
+                                  :key="field"
+                                  class="field-check mono"
+                                >
+                                  <a-checkbox
+                                    :checked="extractOf(model.providers[index]).fields.includes(field)"
+                                    @update:checked="(v: boolean) => toggleExtractField(model.providers[index], field, v)"
+                                  />
+                                  {{ field }}
+                                </label>
+                                <p
+                                  v-if="!discoveredFieldsOf(model.providers[index]).length"
+                                  class="field-hint"
+                                >
+                                  未解析到 JSON 字段，可改用「原始内容」或切换响应格式
+                                </p>
+                              </div>
+                              <a-select
+                                mode="tags"
+                                class="extract-select"
+                                :value="extractOf(model.providers[index]).fields"
+                                placeholder="也可手动输入字段名"
+                                :token-separators="[',', ' ']"
+                                @update:value="(v: string[]) => setExtractFields(model.providers[index], v)"
+                              />
                             </div>
-                            <a-select
-                              mode="tags"
-                              class="extract-select"
-                              :value="extractOf(model.providers[index]).fields"
-                              placeholder="也可手动输入字段名"
-                              :token-separators="[',', ' ']"
-                              @update:value="(v: string[]) => setExtractFields(model.providers[index], v)"
-                            />
+                          </div>
+
+                          <div class="extract-row">
+                            <span class="extract-label">数据清洗</span>
+                            <div class="extract-clean-list">
+                              <button
+                                v-for="opt in RESPONSE_EXTRACT_CLEAN_OPTIONS"
+                                :key="opt.value"
+                                type="button"
+                                class="extract-clean-btn"
+                                :class="{
+                                  'is-active': extractOf(model.providers[index]).clean.includes(opt.value),
+                                }"
+                                @click="toggleExtractClean(model.providers[index], opt.value)"
+                              >
+                                {{ opt.label }}
+                              </button>
+                            </div>
                           </div>
                         </div>
 
-                        <div
-                          v-if="extractOf(model.providers[index]).source === 'sse'"
-                          class="extract-row"
-                        >
-                          <span class="extract-label">事件范围</span>
-                          <a-radio-group
-                            class="extract-seg"
-                            size="small"
-                            :value="extractOf(model.providers[index]).pick"
-                            @update:value="(v: string) => setExtractPick(model.providers[index], v as ResponseExtractPick)"
-                          >
-                            <a-radio-button value="all">全部事件</a-radio-button>
-                            <a-radio-button value="last">仅最后一条</a-radio-button>
-                          </a-radio-group>
-                        </div>
+                        <p class="extract-rule mono">{{ extractRuleSummary(model.providers[index]) }}</p>
 
-                        <div class="extract-row">
-                          <span class="extract-label">拼接方式</span>
-                          <a-radio-group
-                            class="extract-seg"
-                            size="small"
-                            :value="extractOf(model.providers[index]).joinWith"
-                            @update:value="(v: string) => setExtractJoin(model.providers[index], v as ResponseExtractJoin)"
-                          >
-                            <a-radio-button :value="'\n'">换行</a-radio-button>
-                            <a-radio-button value=" ">空格</a-radio-button>
-                            <a-radio-button value="">无分隔</a-radio-button>
-                          </a-radio-group>
+                        <div class="output-preview">
+                          <div class="sample-meta">
+                            <span class="sample-label">最终 output 预览</span>
+                          </div>
+                          <pre class="output-body mono">{{ outputPreviewOf(model.providers[index]) || '—' }}</pre>
                         </div>
                       </div>
-
-                      <p class="extract-rule mono">{{ extractRuleSummary(model.providers[index]) }}</p>
-
-                      <div class="output-preview">
-                        <div class="sample-meta">
-                          <span class="sample-label">最终 output 预览</span>
-                        </div>
-                        <pre class="output-body mono">{{ outputPreviewOf(model.providers[index]) || '—' }}</pre>
-                      </div>
-                    </div>
+                    </template>
                   </template>
                 </template>
               </div>
@@ -1343,28 +1394,53 @@ function removeDefaultAssert(index: number) {
               </a-table-column>
               <a-table-column title="测试项" ellipsis>
                 <template #default="{ record }">
-                  {{ model.tests[record.index].description || '—' }}
+                  <a-tooltip
+                    placement="topLeft"
+                    :title="model.tests[record.index].description || undefined"
+                  >
+                    <span class="cell-ellipsis">
+                      {{ model.tests[record.index].description || '—' }}
+                    </span>
+                  </a-tooltip>
                 </template>
               </a-table-column>
               <a-table-column title="变量" ellipsis>
                 <template #default="{ record }">
-                  <span class="mono tiny">{{ testVarsPreview(model.tests[record.index].varsText) }}</span>
+                  <a-tooltip
+                    placement="topLeft"
+                    :title="
+                      testVarsPreview(model.tests[record.index].varsText) === '—'
+                        ? undefined
+                        : testVarsPreview(model.tests[record.index].varsText)
+                    "
+                  >
+                    <span class="mono tiny cell-ellipsis">
+                      {{ testVarsPreview(model.tests[record.index].varsText) }}
+                    </span>
+                  </a-tooltip>
                 </template>
               </a-table-column>
-              <a-table-column title="断言" :width="160" ellipsis>
+              <a-table-column title="断言" :width="120" ellipsis>
                 <template #default="{ record }">
-                  {{ testAssertPreview(model.tests[record.index].asserts) }}
+                  <a-tooltip
+                    placement="topLeft"
+                    :title="
+                      testAssertPreview(model.tests[record.index].asserts) === '—'
+                        ? undefined
+                        : testAssertPreview(model.tests[record.index].asserts)
+                    "
+                  >
+                    <span class="cell-ellipsis">
+                      {{ truncateText(testAssertPreview(model.tests[record.index].asserts), 10) }}
+                    </span>
+                  </a-tooltip>
                 </template>
               </a-table-column>
               <a-table-column title="操作" :width="120">
                 <template #default="{ record }">
                   <div class="row-actions">
                     <a @click="openTestDetail(record.index)">编辑</a>
-                    <a
-                      class="danger"
-                      :class="{ disabled: model.tests.length <= 1 }"
-                      @click.prevent="model.tests.length > 1 && removeTest(record.index)"
-                    >删除</a>
+                    <a class="danger" @click.prevent="removeTest(record.index)">删除</a>
                   </div>
                 </template>
               </a-table-column>
@@ -1385,38 +1461,68 @@ function removeDefaultAssert(index: number) {
 
       <a-drawer
         v-model:open="detailOpen"
-        :title="detailTest ? `test${detailIndex + 1} 编辑` : '编辑测试用例'"
+        :title="detailTest ? `编辑 test${detailIndex + 1}` : '编辑测试用例'"
         placement="right"
-        :width="860"
+        :width="720"
         destroy-on-close
+        root-class-name="test-detail-drawer"
       >
         <div v-if="detailTest" class="detail-form">
-          <div class="field">
-            <label>测试项</label>
-            <a-input v-model:value="detailTest.description" placeholder="可选" />
-          </div>
-          <div class="field">
-            <label>变量</label>
-            <div v-if="!promptVarNames.length" class="empty">提示词中尚未定义变量，请先在提示词中使用 {{ varSyntax }}</div>
-            <div v-else class="var-fields">
-              <div v-for="name in promptVarNames" :key="name" class="var-row">
-                <label class="mono var-key">{{ name }}</label>
+          <section class="ek-section">
+            <header class="ek-section-head">
+              <div>
+                <h4>测试项</h4>
+              </div>
+            </header>
+            <a-input
+              v-model:value="detailTest.description"
+              placeholder="例如：辖区内已婚人员数量"
+              allow-clear
+            />
+          </section>
+
+          <section class="ek-section">
+            <header class="ek-section-head">
+              <div>
+                <h4>变量</h4>
+              </div>
+            </header>
+            <div v-if="!promptVarNames.length" class="ek-empty">
+              提示词中尚未定义变量，请先使用 {{ varSyntax }}
+            </div>
+            <div v-else class="ek-var-list">
+              <div v-for="name in promptVarNames" :key="name" class="ek-var-row">
+                <span class="ek-var-key">{{ name }}</span>
                 <a-input
                   :value="getVarValue(detailIndex, name)"
                   :placeholder="`输入 ${name}`"
+                  allow-clear
                   @update:value="(value: string) => setVarValue(detailIndex, name, value)"
                 />
               </div>
             </div>
-          </div>
-          <div class="field">
-            <div class="assert-label-row">
-              <label>断言</label>
+          </section>
+
+          <section class="ek-section">
+            <header class="ek-section-head">
+              <div>
+                <h4>断言</h4>
+              </div>
+              <a-button
+                v-if="detailTest.asserts.length"
+                type="dashed"
+                size="small"
+                @click="addAssert(detailIndex)"
+              >
+                <PlusOutlined /> 添加断言
+              </a-button>
+            </header>
+            <div v-if="!detailTest.asserts.length" class="ek-empty is-action">
+              <span>暂无断言</span>
               <a-button type="dashed" size="small" @click="addAssert(detailIndex)">
                 <PlusOutlined /> 添加断言
               </a-button>
             </div>
-            <div v-if="!detailTest.asserts.length" class="empty">暂无断言</div>
             <div v-else class="assert-list">
               <div
                 v-for="(assertItem, assertIndex) in detailTest.asserts"
@@ -1491,7 +1597,7 @@ function removeDefaultAssert(index: number) {
                 </a-button>
               </div>
             </div>
-          </div>
+          </section>
         </div>
       </a-drawer>
 
@@ -1706,6 +1812,17 @@ function removeDefaultAssert(index: number) {
   background: transparent;
 }
 
+.test-table :deep(.ant-table-cell-ellipsis) {
+  overflow: hidden;
+}
+
+.cell-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tiny {
   font-size: 12px;
   color: var(--ek-secondary);
@@ -1735,36 +1852,15 @@ function removeDefaultAssert(index: number) {
 .detail-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.var-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.var-row {
-  display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-}
-
-.var-key {
-  font-size: 12px;
-  color: var(--ek-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: var(--ui-gap, 16px);
 }
 
 .assert-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--ui-gap-tight, 8px);
+  margin-block-end: var(--space-1, 4px);
 }
 
 .assert-label-row label {
@@ -1958,9 +2054,16 @@ function removeDefaultAssert(index: number) {
 
 .extract-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.extract-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .extract-head :deep(.ant-radio-group) {
@@ -1973,6 +2076,56 @@ function removeDefaultAssert(index: number) {
   line-height: 26px;
   padding: 0 12px;
   font-size: 12px;
+}
+
+.extract-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  color: var(--ek-secondary);
+  font-size: 12px;
+}
+
+.extract-toggle-btn:hover {
+  color: var(--ek-accent-ink);
+}
+
+.extract-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ek-border);
+  border-radius: 8px;
+  background: var(--ek-surface);
+  color: var(--ek-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.extract-collapsed:hover {
+  border-color: rgba(15, 118, 110, 0.35);
+  color: var(--ek-secondary);
+}
+
+.extract-collapsed-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extract-collapsed-icon {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--ek-muted);
 }
 
 .extract-title-wrap {
@@ -2089,18 +2242,54 @@ function removeDefaultAssert(index: number) {
   min-width: 0;
 }
 
+.extract-clean-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.extract-clean-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--ek-border);
+  background: #fff;
+  color: var(--ek-secondary);
+  font-size: 12px;
+  line-height: 28px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.extract-clean-btn:hover {
+  color: var(--ek-accent-ink);
+  border-color: rgba(15, 118, 110, 0.35);
+}
+
+.extract-clean-btn.is-active {
+  color: var(--ek-accent-ink);
+  background: rgba(15, 118, 110, 0.1);
+  border-color: rgba(15, 118, 110, 0.45);
+  font-weight: 500;
+}
+
 .extract-seg {
   display: inline-flex !important;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .extract-seg :deep(.ant-radio-button-wrapper) {
-  height: 28px;
-  line-height: 26px;
+  height: 30px;
+  line-height: 28px;
   padding: 0 12px;
+  margin: 0 !important;
   font-size: 12px;
   color: var(--ek-secondary);
-  background: var(--ek-bg);
-  border-color: var(--ek-border) !important;
+  background: #fff;
+  border: 1px solid var(--ek-border) !important;
+  border-radius: 8px !important;
   box-shadow: none !important;
 }
 
@@ -2108,35 +2297,27 @@ function removeDefaultAssert(index: number) {
   display: none;
 }
 
-.extract-seg :deep(.ant-radio-button-wrapper:first-child) {
-  border-inline-start: 1px solid var(--ek-border);
-  border-radius: 7px 0 0 7px;
-}
-
+.extract-seg :deep(.ant-radio-button-wrapper:first-child),
 .extract-seg :deep(.ant-radio-button-wrapper:last-child) {
-  border-radius: 0 7px 7px 0;
-}
-
-.extract-seg :deep(.ant-radio-button-wrapper:not(:first-child)) {
-  margin-inline-start: -1px;
+  border-radius: 8px !important;
 }
 
 .extract-seg :deep(.ant-radio-button-wrapper:hover) {
   color: var(--ek-accent-ink);
-  z-index: 1;
+  border-color: rgba(15, 118, 110, 0.35) !important;
 }
 
 .extract-seg :deep(.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled)) {
-  z-index: 2;
   color: var(--ek-accent-ink) !important;
   background: rgba(15, 118, 110, 0.1) !important;
-  border-color: rgba(15, 118, 110, 0.35) !important;
+  border-color: rgba(15, 118, 110, 0.45) !important;
   font-weight: 500;
 }
 
 .extract-seg :deep(.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover) {
   color: var(--ek-accent-ink) !important;
   background: rgba(15, 118, 110, 0.14) !important;
+  border-color: rgba(15, 118, 110, 0.55) !important;
 }
 
 .extract-seg :deep(.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled)::before) {
@@ -2649,5 +2830,17 @@ function removeDefaultAssert(index: number) {
   margin: 0;
   font-size: 12px;
   color: #6b7487;
+}
+</style>
+
+<style>
+.test-detail-drawer .ant-drawer-body {
+  padding-block: var(--space-4, 16px) var(--space-6, 24px);
+  padding-inline: var(--space-5, 20px);
+  background: var(--surface-raised, var(--ek-surface, #fff));
+}
+
+.test-detail-drawer .ant-drawer-header {
+  border-block-end: 1px solid var(--ui-border, var(--ek-border));
 }
 </style>

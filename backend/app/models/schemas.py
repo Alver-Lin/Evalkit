@@ -18,12 +18,16 @@ class ConfigCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     description: str = ""
     yaml_content: str = Field(..., min_length=1)
+    max_concurrency: int = Field(2, ge=1, le=20)
+    cache: bool = False
 
 
 class ConfigUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=120)
     description: Optional[str] = None
     yaml_content: Optional[str] = None
+    max_concurrency: Optional[int] = Field(None, ge=1, le=20)
+    cache: Optional[bool] = None
 
 
 class ConfigMeta(BaseModel):
@@ -33,6 +37,8 @@ class ConfigMeta(BaseModel):
     created_at: datetime
     updated_at: datetime
     yaml_content: str
+    max_concurrency: int = Field(2, ge=1, le=20)
+    cache: bool = False
 
 
 class EvalRunRequest(BaseModel):
