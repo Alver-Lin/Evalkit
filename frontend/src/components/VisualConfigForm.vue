@@ -2,23 +2,32 @@
 import { computed, ref, watch } from 'vue'
 import { Upload, message } from 'ant-design-vue'
 import {
+  ApiOutlined,
   CloudUploadOutlined,
   DeleteOutlined,
   PlusOutlined,
   UploadOutlined,
 } from '@ant-design/icons-vue'
 import type { UploadFile, UploadProps } from 'ant-design-vue'
+import { api } from '@/api/client'
 import {
   assertNeedsGrader,
+  assertShowsRange,
   assertTreeData,
   getAssertMeta,
 } from '@/constants/assertOptions'
 import {
   createVisualAssert,
+  emptyHttpProvider,
+  emptyProvider,
+  inferProviderKind,
   providerHasExtraFields,
   providerHasId,
+  type ProviderKind,
   type VisualAssert,
   type VisualConfig,
+  type VisualHttpHeader,
+  type VisualProvider,
 } from '@/utils/promptfooConfig'
 import { draftsToVisualTests, parseImportedTests, sampleAssertYaml } from '@/utils/importTests'
 
@@ -29,6 +38,17 @@ const props = defineProps<{
 }>()
 
 const varSyntax = '{{variable}}'
+const promptVarSyntax = '{{prompt}}'
+const httpPromptPlaceholder = `{
+  "message": "{{message}}",
+  "scenario": null,
+  "client_id": "",
+  "session_id": "",
+  "selected_kbs": ["public_kingbase"]
+}`
+const hasHttpProvider = computed(() =>
+  model.value.providers.some((provider) => inferProviderKind(provider) === 'http'),
+)
 const polarityOptions = [
   { value: 'yes', label: '是' },
   { value: 'not', label: '非' },
@@ -114,15 +134,48 @@ watch(promptTotal, () => clampPage(promptPage, model.value.prompts.length))
 watch(providerTotal, () => clampPage(providerPage, model.value.providers.length))
 watch(testTotal, () => clampPage(testPage, model.value.tests.length))
 
-function addProvider() {
-  model.value.providers.push({
-    id: '',
-    label: '',
-    apiKey: '',
-    apiHost: '',
-    organization: '',
-  })
+const providerModalOpen = ref(false)
+
+const httpMethodOptions = [
+  { value: 'POST', label: 'POST' },
+  { value: 'GET', label: 'GET' },
+  { value: 'PUT', label: 'PUT' },
+  { value: 'PATCH', label: 'PATCH' },
+  { value: 'DELETE', label: 'DELETE' },
+]
+
+function openProviderModal() {
+  providerModalOpen.value = true
+}
+
+function selectProviderKind(kind: ProviderKind) {
+  model.value.providers.push(kind === 'http' ? emptyHttpProvider() : emptyProvider())
+  providerModalOpen.value = false
   providerPage.value = Math.ceil(model.value.providers.length / pageSize) || 1
+}
+
+function ensureHttpHeaders(provider: VisualProvider) {
+  if (!provider.headers) provider.headers = [{ key: 'Content-Type', value: 'application/json' }]
+  if (!provider.headers.length) provider.headers.push({ key: '', value: '' })
+}
+
+function httpHeadersOf(provider: VisualProvider): VisualHttpHeader[] {
+  ensureHttpHeaders(provider)
+  return provider.headers!
+}
+
+function addHttpHeader(provider: VisualProvider) {
+  ensureHttpHeaders(provider)
+  provider.headers!.push({ key: '', value: '' })
+}
+
+function removeHttpHeader(provider: VisualProvider, headerIndex: number) {
+  ensureHttpHeaders(provider)
+  if ((provider.headers?.length || 0) <= 1) {
+    provider.headers = [{ key: '', value: '' }]
+    return
+  }
+  provider.headers!.splice(headerIndex, 1)
 }
 
 function reindexGraderProviders(removedIndex: number) {
@@ -140,10 +193,21 @@ function reindexGraderProviders(removedIndex: number) {
   for (const test of model.value.tests) fix(test.asserts)
 }
 
+function reindexProbeStates(removedIndex: number) {
+  const next: Record<number, ProbeState> = {}
+  for (const [key, state] of Object.entries(probeStates.value)) {
+    const i = Number(key)
+    if (i === removedIndex) continue
+    next[i > removedIndex ? i - 1 : i] = state
+  }
+  probeStates.value = next
+}
+
 function removeProvider(index: number) {
   if (model.value.providers.length <= 1) return
   model.value.providers.splice(index, 1)
   reindexGraderProviders(index)
+  reindexProbeStates(index)
   clampPage(providerPage, model.value.providers.length)
 }
 
@@ -151,6 +215,62 @@ function providerMissingId(index: number): boolean {
   const provider = model.value.providers[index]
   if (!provider) return false
   return !providerHasId(provider) && providerHasExtraFields(provider)
+}
+
+type ProbeStatus = 'idle' | 'loading' | 'success' | 'error'
+
+interface ProbeState {
+  status: ProbeStatus
+  message: string
+}
+
+const probeStates = ref<Record<number, ProbeState>>({})
+const probingIndex = computed(() => {
+  const entry = Object.entries(probeStates.value).find(([, state]) => state.status === 'loading')
+  return entry ? Number(entry[0]) : null
+})
+
+function probeStateOf(index: number): ProbeState {
+  return probeStates.value[index] || { status: 'idle', message: '' }
+}
+
+function setProbeState(index: number, status: ProbeStatus, msg = '') {
+  probeStates.value = {
+    ...probeStates.value,
+    [index]: { status, message: msg },
+  }
+}
+
+async function testProviderConnectivity(index: number) {
+  const provider = model.value.providers[index]
+  if (!provider) return
+  if (!provider.id.trim()) {
+    message.warning(
+      inferProviderKind(provider) === 'http' ? '请先填写 URL' : '请先填写 Provider ID',
+    )
+    return
+  }
+  setProbeState(index, 'loading', '连接中')
+  try {
+    const kind = inferProviderKind(provider)
+    const result = await api.probeProvider({
+      id: provider.id.trim(),
+      api_key: provider.apiKey.trim(),
+      api_host: provider.apiHost.trim(),
+      organization: provider.organization.trim(),
+      method: kind === 'http' ? (provider.httpMethod || 'POST').toUpperCase() : undefined,
+    })
+    if (result.ok) {
+      setProbeState(index, 'success', result.message || '连接成功')
+    } else {
+      setProbeState(index, 'error', result.message || '连接失败')
+      message.error(result.message)
+    }
+  } catch (err: any) {
+    const detail = err?.response?.data?.detail || err?.message || '连通测试失败'
+    setProbeState(index, 'error', detail)
+    message.error(detail)
+  }
 }
 
 const graderProviderOptions = computed(() =>
@@ -372,11 +492,17 @@ function testAssertPreview(asserts: VisualAssert[]) {
 }
 
 function showsValue(assert: VisualAssert) {
-  return getAssertMeta(assert.type).hasValue !== false
+  const meta = getAssertMeta(assert.type)
+  if (meta.hasRange) return false
+  return meta.hasValue !== false
 }
 
 function showsThreshold(assert: VisualAssert) {
   return Boolean(getAssertMeta(assert.type).hasThreshold)
+}
+
+function showsRange(assert: VisualAssert) {
+  return assertShowsRange(assert.type)
 }
 
 function showsGrader(assert: VisualAssert) {
@@ -395,10 +521,12 @@ function onAssertTypeChange(assert: VisualAssert, type: string | undefined) {
   const next = (type || '').trim() || 'contains'
   assert.type = next
   const meta = getAssertMeta(next)
-  if (meta.hasValue === false) {
+  if (meta.hasValue === false || meta.hasRange) {
     assert.value = ''
   }
   assert.threshold = meta.hasThreshold ? (meta.defaultThreshold ?? null) : null
+  assert.min = meta.hasRange ? (meta.defaultMin ?? null) : null
+  assert.max = meta.hasRange ? (meta.defaultMax ?? null) : null
   if (meta.needsGrader) {
     if (
       assert.graderProviderIndex == null ||
@@ -414,7 +542,9 @@ function onAssertTypeChange(assert: VisualAssert, type: string | undefined) {
 function assertRowClass(assert: VisualAssert) {
   const hasValue = showsValue(assert)
   const hasThreshold = showsThreshold(assert)
+  const hasRange = showsRange(assert)
   const hasGrader = showsGrader(assert)
+  if (hasRange) return 'assert-row assert-row-range'
   if (hasValue && hasThreshold && hasGrader) return 'assert-row assert-row-both-grader'
   if (hasValue && hasThreshold) return 'assert-row assert-row-both'
   if (hasThreshold) return 'assert-row assert-row-threshold'
@@ -446,7 +576,11 @@ function removeDefaultAssert(index: number) {
       <header class="panel-head">
         <div class="head-text">
           <h3>提示词</h3>
-          <p>模板支持 <code>{{ varSyntax }}</code> 格式可作为变量补充</p>
+          <p>
+            自定义 HTTP 时，此处填写请求 Body（JSON）；新建 OpenAI 兼容时，此处填写提示词。用
+            <code>{{ varSyntax }}</code> 作变量，供应商 Body 固定为
+            <code>{{ promptVarSyntax }}</code>
+          </p>
         </div>
         <div class="head-meta">
           <a-button type="dashed" class="add-btn" @click="addPrompt">
@@ -475,9 +609,9 @@ function removeDefaultAssert(index: number) {
             </div>
             <a-textarea
               v-model:value="model.prompts[index]"
-              :rows="5"
+              :rows="hasHttpProvider ? 10 : 5"
               class="prompt-editor mono"
-              :placeholder="'例如：Answer: ' + varSyntax"
+              :placeholder="hasHttpProvider ? httpPromptPlaceholder : '例如：Answer: ' + varSyntax"
             />
           </div>
         </div>
@@ -498,10 +632,10 @@ function removeDefaultAssert(index: number) {
       <header class="panel-head">
         <div class="head-text">
           <h3>供应商</h3>
-          <p>必填 Provider ID；OpenAI 兼容填 openai:chat:模型名 + Host，自定义 HTTP 可直接填 https://...</p>
+          <p>新建时可选择「自定义 HTTP」或「OpenAI 兼容」</p>
         </div>
         <div class="head-meta">
-          <a-button type="dashed" class="add-btn" @click="addProvider">
+          <a-button type="dashed" class="add-btn" @click="openProviderModal">
             <PlusOutlined /> 新建供应商
           </a-button>
         </div>
@@ -515,18 +649,165 @@ function removeDefaultAssert(index: number) {
             :class="{ 'item-warn': providerMissingId(index) }"
           >
             <div class="item-head">
-              <span class="badge mono">provider{{ index + 1 }}</span>
-              <a-button
-                type="text"
-                danger
-                class="icon-btn"
-                :disabled="model.providers.length <= 1"
-                @click="removeProvider(index)"
-              >
-                <DeleteOutlined />
-              </a-button>
+              <div class="item-title-row">
+                <span class="badge mono">provider{{ index + 1 }}</span>
+                <span
+                  class="kind-badge"
+                  :class="inferProviderKind(model.providers[index]) === 'http' ? 'is-http' : 'is-openai'"
+                >
+                  {{ inferProviderKind(model.providers[index]) === 'http' ? 'HTTP' : 'OpenAI' }}
+                </span>
+              </div>
+              <div class="item-actions">
+                <a-tooltip
+                  v-if="probeStateOf(index).status !== 'idle'"
+                  :title="probeStateOf(index).message"
+                >
+                  <span
+                    class="probe-bubble"
+                    :class="`is-${probeStateOf(index).status}`"
+                  >
+                    <span class="probe-dot" aria-hidden="true" />
+                    {{
+                      probeStateOf(index).status === 'loading'
+                        ? '连接中'
+                        : probeStateOf(index).status === 'success'
+                          ? '连接成功'
+                          : '连接失败'
+                    }}
+                  </span>
+                </a-tooltip>
+                <a-button
+                  type="text"
+                  size="small"
+                  class="probe-btn"
+                  :loading="probeStateOf(index).status === 'loading'"
+                  :disabled="
+                    !model.providers[index].id.trim() ||
+                    (probingIndex !== null && probingIndex !== index)
+                  "
+                  @click="testProviderConnectivity(index)"
+                >
+                  <template #icon><ApiOutlined /></template>
+                  测试连通
+                </a-button>
+                <a-button
+                  type="text"
+                  danger
+                  class="icon-btn"
+                  :disabled="model.providers.length <= 1"
+                  @click="removeProvider(index)"
+                >
+                  <DeleteOutlined />
+                </a-button>
+              </div>
             </div>
-            <div class="provider-grid" autocomplete="off">
+
+            <!-- Custom HTTP card -->
+            <div
+              v-if="inferProviderKind(model.providers[index]) === 'http'"
+              class="provider-grid provider-grid-http"
+              autocomplete="off"
+            >
+              <div class="field span-main">
+                <label>
+                  名称
+                  <span class="req" aria-hidden="true">*</span>
+                </label>
+                <a-input
+                  v-model:value="model.providers[index].label"
+                  name="evalkit-http-label"
+                  autocomplete="off"
+                  placeholder="Agent 显示名"
+                />
+              </div>
+              <div class="field span-side">
+                <label>
+                  请求方法
+                  <span class="req" aria-hidden="true">*</span>
+                </label>
+                <a-select
+                  v-model:value="model.providers[index].httpMethod"
+                  :options="httpMethodOptions"
+                  style="width: 100%"
+                />
+              </div>
+              <div class="field span-full">
+                <label>描述</label>
+                <a-input
+                  v-model:value="model.providers[index].description"
+                  name="evalkit-http-desc"
+                  autocomplete="off"
+                  placeholder="可选，仅保存在可视化配置中"
+                />
+              </div>
+              <div class="field span-main">
+                <label>
+                  URL
+                  <span class="req" aria-hidden="true">*</span>
+                </label>
+                <a-input
+                  v-model:value="model.providers[index].id"
+                  class="mono"
+                  name="evalkit-http-url"
+                  autocomplete="off"
+                  :status="providerMissingId(index) ? 'error' : undefined"
+                  placeholder="https://example.com/api/chat"
+                />
+                <p v-if="providerMissingId(index)" class="field-hint is-error">
+                  已填写其它字段，但缺少 URL，保存会被拒绝
+                </p>
+              </div>
+              <div class="field span-side">
+                <label>
+                  超时（秒）
+                  <span class="req" aria-hidden="true">*</span>
+                </label>
+                <a-input-number
+                  v-model:value="model.providers[index].timeoutSec"
+                  class="max-tokens-input"
+                  :min="1"
+                  :max="600"
+                  :step="5"
+                  placeholder="60"
+                />
+              </div>
+              <div class="field span-full">
+                <label>Header</label>
+                <div class="kv-list">
+                  <div
+                    v-for="(header, hIndex) in httpHeadersOf(model.providers[index])"
+                    :key="`hdr-${index}-${hIndex}`"
+                    class="kv-row"
+                  >
+                    <a-input
+                      v-model:value="header.key"
+                      class="mono"
+                      placeholder="Key"
+                    />
+                    <a-input
+                      v-model:value="header.value"
+                      class="mono"
+                      placeholder="Value，支持模板变量"
+                    />
+                    <a-button
+                      type="text"
+                      danger
+                      class="icon-btn"
+                      @click="removeHttpHeader(model.providers[index], hIndex)"
+                    >
+                      <DeleteOutlined />
+                    </a-button>
+                  </div>
+                  <a-button type="dashed" size="small" class="kv-add" @click="addHttpHeader(model.providers[index])">
+                    <PlusOutlined /> 添加 Header
+                  </a-button>
+                </div>
+              </div>
+            </div>
+
+            <!-- OpenAI compatible card -->
+            <div v-else class="provider-grid" autocomplete="off">
               <div class="field span-main">
                 <label>
                   Provider ID
@@ -538,13 +819,13 @@ function removeDefaultAssert(index: number) {
                   name="evalkit-provider-id"
                   autocomplete="off"
                   :status="providerMissingId(index) ? 'error' : undefined"
-                  placeholder="openai:chat:模型名 / deepseek / https://..."
+                  placeholder="openai:chat:模型名 / deepseek"
                 />
                 <p v-if="providerMissingId(index)" class="field-hint is-error">
                   已填写密钥或 Host，但缺少 Provider ID，保存会被拒绝
                 </p>
                 <p v-else class="field-hint">
-                  OpenAI 兼容：openai:chat:模型名；自定义 HTTP：完整 URL
+                  OpenAI 兼容：openai:chat:模型名；DeepSeek 可填 deepseek
                 </p>
               </div>
               <div class="field span-side">
@@ -588,6 +869,26 @@ function removeDefaultAssert(index: number) {
                   placeholder="可选"
                 />
               </div>
+              <div class="field span-full">
+                <label>max_tokens</label>
+                <a-input-number
+                  v-model:value="model.providers[index].maxTokens"
+                  class="max-tokens-input"
+                  :min="1"
+                  :max="128000"
+                  :step="64"
+                  placeholder="例如 1024"
+                />
+              </div>
+              <div class="field span-full thinking-row">
+                <label>是否开启 think</label>
+                <div class="thinking-switch">
+                  <a-switch
+                    :checked="Boolean(model.providers[index].enableThinking)"
+                    @update:checked="(v: boolean) => (model.providers[index].enableThinking = v)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -602,6 +903,29 @@ function removeDefaultAssert(index: number) {
           />
         </div>
       </div>
+
+      <a-modal
+        v-model:open="providerModalOpen"
+        title="新建供应商"
+        :width="520"
+        wrap-class-name="provider-create-modal-wrap"
+        destroy-on-close
+        :footer="null"
+      >
+        <div class="provider-kind-pick">
+          <p class="provider-kind-hint">选择接入方式后，在列表中直接填写配置</p>
+          <div class="provider-kind-grid">
+            <button type="button" class="provider-kind-card is-http" @click="selectProviderKind('http')">
+              <span class="provider-kind-title">自定义 HTTP</span>
+              <span class="provider-kind-desc">任意 HTTP / SSE Agent 接口</span>
+            </button>
+            <button type="button" class="provider-kind-card is-openai" @click="selectProviderKind('openai')">
+              <span class="provider-kind-title">OpenAI 兼容</span>
+              <span class="provider-kind-desc">OpenAI / DeepSeek 等 Chat API</span>
+            </button>
+          </div>
+        </div>
+      </a-modal>
     </section>
 
     <template v-else-if="section === 'tests'">
@@ -650,6 +974,22 @@ function removeDefaultAssert(index: number) {
                 class="assert-value"
                 :placeholder="valuePlaceholder(assertItem)"
               />
+              <template v-if="showsRange(assertItem)">
+                <a-input-number
+                  v-model:value="assertItem.min"
+                  class="assert-range"
+                  placeholder="最小"
+                  :min="0"
+                  :controls="false"
+                />
+                <a-input-number
+                  v-model:value="assertItem.max"
+                  class="assert-range"
+                  placeholder="最大"
+                  :min="0"
+                  :controls="false"
+                />
+              </template>
               <a-input-number
                 v-if="showsThreshold(assertItem)"
                 v-model:value="assertItem.threshold"
@@ -815,6 +1155,22 @@ function removeDefaultAssert(index: number) {
                   class="assert-value"
                   :placeholder="valuePlaceholder(assertItem)"
                 />
+                <template v-if="showsRange(assertItem)">
+                  <a-input-number
+                    v-model:value="assertItem.min"
+                    class="assert-range"
+                    placeholder="最小"
+                    :min="0"
+                    :controls="false"
+                  />
+                  <a-input-number
+                    v-model:value="assertItem.max"
+                    class="assert-range"
+                    placeholder="最大"
+                    :min="0"
+                    :controls="false"
+                  />
+                </template>
                 <a-input-number
                   v-if="showsThreshold(assertItem)"
                   v-model:value="assertItem.threshold"
@@ -1139,6 +1495,96 @@ function removeDefaultAssert(index: number) {
   min-height: 28px;
 }
 
+.item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.probe-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.probe-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.probe-bubble.is-loading {
+  color: #9a6700;
+  background: #fff8c5;
+  border-color: rgba(154, 103, 0, 0.18);
+}
+
+.probe-bubble.is-loading .probe-dot {
+  background: #9a6700;
+  box-shadow: 0 0 0 0 rgba(154, 103, 0, 0.45);
+  animation: probe-pulse 1.2s ease-out infinite;
+}
+
+.probe-bubble.is-success {
+  color: #1a7f37;
+  background: #dafbe1;
+  border-color: rgba(26, 127, 55, 0.18);
+}
+
+.probe-bubble.is-success .probe-dot {
+  background: #1a7f37;
+}
+
+.probe-bubble.is-error {
+  color: #cf222e;
+  background: #ffebe9;
+  border-color: rgba(207, 34, 46, 0.18);
+}
+
+.probe-bubble.is-error .probe-dot {
+  background: #cf222e;
+}
+
+@keyframes probe-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(154, 103, 0, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(154, 103, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(154, 103, 0, 0);
+  }
+}
+
+.probe-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  width: auto !important;
+  min-width: auto;
+  padding: 0 10px !important;
+  color: var(--ek-muted);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.probe-btn:hover {
+  color: var(--ek-ink);
+  background: rgba(17, 24, 39, 0.04) !important;
+}
+
 .badge {
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -1150,11 +1596,68 @@ function removeDefaultAssert(index: number) {
   line-height: 16px;
 }
 
+.item-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kind-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 4px;
+  padding: 2px 7px;
+  line-height: 16px;
+  border: 1px solid transparent;
+}
+
+.kind-badge.is-http {
+  color: #0b5f59;
+  background: rgba(15, 118, 110, 0.1);
+  border-color: rgba(15, 118, 110, 0.22);
+}
+
+.kind-badge.is-openai {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
 .provider-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 148px;
   gap: 10px 12px;
 }
+
+.provider-grid-http {
+  grid-template-columns: minmax(0, 1fr) 140px;
+}
+
+.kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+.kv-add {
+  align-self: flex-start;
+}
+
+.body-textarea {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 
 .span-main {
   grid-column: 1;
@@ -1203,6 +1706,22 @@ function removeDefaultAssert(index: number) {
   color: #b42318;
 }
 
+.thinking-row .thinking-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.thinking-row .field-hint {
+  margin: 0;
+}
+
+.max-tokens-input {
+  width: 100%;
+  max-width: 220px;
+}
+
 .item-warn {
   border-color: rgba(180, 35, 24, 0.35);
   background: rgba(180, 35, 24, 0.03);
@@ -1244,6 +1763,11 @@ function removeDefaultAssert(index: number) {
   grid-template-columns: var(--assert-polarity-w) var(--assert-type-w) minmax(0, 1fr) 28px;
 }
 
+.assert-row-range {
+  grid-template-columns:
+    var(--assert-polarity-w) var(--assert-type-w) minmax(88px, 120px) minmax(88px, 120px) 28px;
+}
+
 .assert-row-threshold {
   grid-template-columns: var(--assert-polarity-w) var(--assert-type-w) minmax(120px, 160px) 28px;
 }
@@ -1275,6 +1799,7 @@ function removeDefaultAssert(index: number) {
 
 .assert-value,
 .assert-threshold,
+.assert-range,
 .assert-grader {
   min-width: 0;
   width: 100%;
@@ -1325,6 +1850,7 @@ function removeDefaultAssert(index: number) {
   }
 
   .assert-row-value,
+  .assert-row-range,
   .assert-row-threshold,
   .assert-row-both,
   .assert-row-both-grader,
@@ -1344,12 +1870,21 @@ function removeDefaultAssert(index: number) {
 
   .assert-row .assert-value,
   .assert-row .assert-threshold,
+  .assert-row .assert-range,
   .assert-row .assert-grader {
     grid-column: 1 / 3;
   }
 
   .assert-row .assert-value {
     grid-row: 2;
+  }
+
+  .assert-row-range .assert-range:nth-of-type(1) {
+    grid-row: 2;
+  }
+
+  .assert-row-range .assert-range:nth-of-type(2) {
+    grid-row: 3;
   }
 
   .assert-row-both .assert-threshold,
@@ -1374,6 +1909,132 @@ function removeDefaultAssert(index: number) {
 </style>
 
 <style>
+.provider-create-modal-wrap .ant-modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.provider-create-modal-wrap .provider-kind-pick {
+  padding: 8px 0 12px;
+}
+
+.provider-create-modal-wrap .provider-kind-hint {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7487;
+}
+
+.provider-create-modal-wrap .provider-kind-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.provider-create-modal-wrap .provider-kind-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 112px;
+  padding: 20px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--ek-border, #e5e7eb);
+  background: #fafbfc;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.provider-create-modal-wrap .provider-kind-card:hover {
+  transform: translateY(-1px);
+}
+
+.provider-create-modal-wrap .provider-kind-card.is-http:hover {
+  border-color: rgba(15, 118, 110, 0.45);
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.provider-create-modal-wrap .provider-kind-card.is-openai:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.provider-create-modal-wrap .provider-kind-title {
+  font-size: 16px;
+  font-weight: 650;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.provider-create-modal-wrap .provider-kind-desc {
+  font-size: 12px;
+  color: #6b7487;
+  line-height: 1.45;
+}
+
+.provider-create-modal-wrap .provider-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.provider-create-modal-wrap .provider-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ek-border, #e5e7eb);
+}
+
+.provider-create-modal-wrap .provider-modal-footer-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-create-modal-wrap .modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.provider-create-modal-wrap .field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.provider-create-modal-wrap .field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #6b7487;
+  line-height: 1.4;
+}
+
+.provider-create-modal-wrap .kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.provider-create-modal-wrap .kv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+.provider-create-modal-wrap .body-textarea textarea,
+.provider-create-modal-wrap .body-textarea {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
 .test-import-modal-wrap .ant-modal-content {
   border-radius: 16px;
   overflow: hidden;

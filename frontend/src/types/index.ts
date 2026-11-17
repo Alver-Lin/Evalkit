@@ -60,6 +60,8 @@ export interface ReportRow {
   prompt: string
   vars: Record<string, unknown>
   output: string
+  /** Model thinking / chain-of-thought, split from output when present. */
+  thinking?: string | null
   success: boolean
   score?: number | null
   latencyMs?: number | null
@@ -85,4 +87,23 @@ export interface ReportView {
   timestamp?: string
   version?: number | string
   raw?: Record<string, unknown> | null
+}
+
+export interface ProviderProbeRequest {
+  id: string
+  api_key?: string
+  api_host?: string
+  organization?: string
+  /** HTTP method for custom HTTP providers (e.g. POST). */
+  method?: string
+}
+
+export interface ProviderProbeResponse {
+  ok: boolean
+  message: string
+  provider_id?: string | null
+  api_base?: string | null
+  model?: string | null
+  latency_ms?: number | null
+  details?: Record<string, unknown> | null
 }

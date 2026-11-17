@@ -33,8 +33,8 @@ const form = reactive({
 
 const steps = [
   { step: 1, key: 'basic' as const, label: '基本信息' },
-  { step: 2, key: 'prompts' as const, label: '提示词' },
-  { step: 3, key: 'providers' as const, label: '供应商' },
+  { step: 2, key: 'providers' as const, label: '供应商' },
+  { step: 3, key: 'prompts' as const, label: '提示词' },
   { step: 4, key: 'tests' as const, label: '测试用例' },
 ]
 
@@ -66,7 +66,7 @@ function ensureProvidersValid(): boolean {
   const result = validateVisualProviders(visual.value.providers)
   if (result.ok) return true
   activeTab.value = 'visual'
-  visualStep.value = 3
+  visualStep.value = 2
   message.error(result.message || '供应商配置不完整')
   return false
 }

@@ -775,6 +775,13 @@ onUnmounted(() => {
                             '—'
                           }}
                         </div>
+                        <details
+                          v-if="cellOf(record, column.key)!.thinking"
+                          class="thinking-fold"
+                        >
+                          <summary>Thinking</summary>
+                          <pre class="thinking-body">{{ cellOf(record, column.key)!.thinking }}</pre>
+                        </details>
                         <div class="result-meta mono">
                           <span v-if="latencyText(cellOf(record, column.key)!.latencyMs)">
                             {{ latencyText(cellOf(record, column.key)!.latencyMs) }}
@@ -837,6 +844,10 @@ onUnmounted(() => {
         <div class="field">
           <label>变量</label>
           <pre class="block mono">{{ JSON.stringify(detailRow.vars || {}, null, 2) }}</pre>
+        </div>
+        <div v-if="detailRow.thinking" class="field">
+          <label>Thinking</label>
+          <pre class="block thinking-block">{{ detailRow.thinking }}</pre>
         </div>
         <div class="field">
           <label>输出</label>
@@ -1204,6 +1215,36 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.5;
   color: var(--ek-ink);
+}
+
+.thinking-fold {
+  border: 1px solid var(--ek-border);
+  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.03);
+  padding: 6px 8px;
+}
+
+.thinking-fold summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ek-muted);
+  user-select: none;
+}
+
+.thinking-body {
+  margin: 6px 0 0;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ek-muted);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.thinking-block {
+  color: var(--ek-muted);
 }
 
 .result-meta {

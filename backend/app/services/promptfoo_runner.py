@@ -9,6 +9,8 @@ from typing import Any
 
 from app.core.config import settings
 from app.models.schemas import EvalStatus
+from app.services.chinese_rubric import ensure_chinese_rubric_prompt
+from app.services.http_sse import ensure_http_sse_transform
 from app.services.report_builder import summarize_results
 from app.services.store import config_store, run_store
 
@@ -139,6 +141,10 @@ class PromptfooRunner:
         src = settings.configs_dir / config_id
         dest_yaml = run_dir / "promptfooconfig.yaml"
         shutil.copy2(src / "promptfooconfig.yaml", dest_yaml)
+        # Force Chinese llm-rubric / model-graded reasons (promptfoo default is English).
+        ensure_chinese_rubric_prompt(dest_yaml)
+        # Default SSE parser for custom HTTP providers (kept out of user YAML).
+        ensure_http_sse_transform(dest_yaml)
 
         for item in src.iterdir():
             if item.name in {"meta.json", "promptfooconfig.yaml"}:
@@ -159,6 +165,9 @@ class PromptfooRunner:
         env = os.environ.copy()
         env.setdefault("PROMPTFOO_DISABLE_TELEMETRY", "1")
         env.setdefault("CI", "1")
+        # Avoid mid-stream "terminated" on slower thinking models.
+        env.setdefault("REQUEST_TIMEOUT_MS", "300000")
+        env.setdefault("PROMPTFOO_EVAL_TIMEOUT_MS", "600000")
         return env
 
     @staticmethod

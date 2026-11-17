@@ -10,6 +10,12 @@ export type AssertOption = {
   hasThreshold?: boolean
   /** Prefill when switching to this type (and threshold empty). */
   defaultThreshold?: number
+  /** Show min/max range inputs (e.g. word-count). */
+  hasRange?: boolean
+  /** Default min when switching to a range assertion. */
+  defaultMin?: number
+  /** Default max when switching to a range assertion. */
+  defaultMax?: number
   /** Allow picking a configured provider as LLM/embedding grader. */
   needsGrader?: boolean
   /** Value placeholder. */
@@ -83,12 +89,13 @@ export const assertCategories: Array<{
         valuePlaceholder: '多项用逗号分隔，或 JSON 数组',
       },
       {
+        // Visual type; serialized as javascript char-count (CN/EN/digits each = 1).
         value: 'word-count',
-        label: '词数',
+        label: '字符数',
         hasValue: false,
-        hasThreshold: true,
-        defaultThreshold: 50,
-        thresholdPlaceholder: '最大词数',
+        hasRange: true,
+        defaultMin: 80,
+        defaultMax: 120,
       },
     ],
   },
@@ -197,6 +204,10 @@ export function assertShowsValue(type: string | undefined | null): boolean {
 
 export function assertShowsThreshold(type: string | undefined | null): boolean {
   return Boolean(getAssertMeta(type).hasThreshold)
+}
+
+export function assertShowsRange(type: string | undefined | null): boolean {
+  return Boolean(getAssertMeta(type).hasRange)
 }
 
 export function assertDefaultThreshold(type: string | undefined | null): number | undefined {

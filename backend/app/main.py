@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from datetime import datetime, timezone
 
-from app.api import configs, dashboard, runs
+from app.api import configs, dashboard, providers, runs
 from app.core.config import settings
 from app.models.schemas import EvalStatus
 from app.services.seed import ensure_sample_configs
@@ -38,6 +38,7 @@ app.add_middleware(
 
 app.include_router(dashboard.router, prefix=settings.api_prefix)
 app.include_router(configs.router, prefix=settings.api_prefix)
+app.include_router(providers.router, prefix=settings.api_prefix)
 app.include_router(runs.router, prefix=settings.api_prefix)
 
 

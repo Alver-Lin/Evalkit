@@ -79,3 +79,21 @@ class DashboardStats(BaseModel):
 
 class ReportExportRequest(BaseModel):
     format: str = Field("html", pattern="^(html|json|csv)$")
+
+
+class ProviderProbeRequest(BaseModel):
+    id: str = Field(..., min_length=1, description="Provider ID, e.g. openai:chat:qwen")
+    api_key: str = ""
+    api_host: str = ""
+    organization: str = ""
+    method: str = Field("", description="HTTP method for custom HTTP providers, e.g. POST")
+
+
+class ProviderProbeResponse(BaseModel):
+    ok: bool
+    message: str
+    provider_id: Optional[str] = None
+    api_base: Optional[str] = None
+    model: Optional[str] = None
+    latency_ms: Optional[int] = None
+    details: Optional[dict[str, Any]] = None

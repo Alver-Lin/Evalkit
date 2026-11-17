@@ -11,6 +11,8 @@ import yaml
 
 from app.core.config import settings
 from app.models.schemas import ConfigMeta, EvalRunSummary, EvalStatus
+from app.services.chinese_rubric import strip_evalkit_rubric_prompt_text
+from app.services.http_sse import strip_default_sse_transform_text
 
 
 def _now() -> datetime:
@@ -39,7 +41,13 @@ class ConfigStore:
             raise FileNotFoundError(f"Config not found: {config_id}")
         return ConfigMeta(**_read_json(meta_path))
 
+    @staticmethod
+    def _sanitize_yaml(yaml_content: str) -> str:
+        cleaned = strip_evalkit_rubric_prompt_text(yaml_content)
+        return strip_default_sse_transform_text(cleaned)
+
     def create(self, name: str, description: str, yaml_content: str) -> ConfigMeta:
+        yaml_content = self._sanitize_yaml(yaml_content)
         self._validate_yaml(yaml_content)
         config_id = uuid.uuid4().hex[:12]
         now = _now()
@@ -67,6 +75,7 @@ class ConfigStore:
         if description is not None:
             meta.description = description
         if yaml_content is not None:
+            yaml_content = self._sanitize_yaml(yaml_content)
             self._validate_yaml(yaml_content)
             meta.yaml_content = yaml_content
         meta.updated_at = _now()

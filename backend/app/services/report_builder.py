@@ -2,7 +2,43 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from typing import Any
+
+
+_THINKING_PREFIX = re.compile(r"(?is)^\s*thinking\s*:\s*")
+
+
+def split_thinking_output(raw: str) -> tuple[str, str]:
+    """Split promptfoo's `Thinking: ...\\n\\nanswer` blob into (output, thinking)."""
+    text = raw if isinstance(raw, str) else ("" if raw is None else str(raw))
+    stripped = text.strip()
+    if not stripped or not _THINKING_PREFIX.match(stripped):
+        return text, ""
+
+    # Prefer the last block after 2+ blank lines as the final answer.
+    parts = [p.strip() for p in re.split(r"\n\s*\n\s*\n+", stripped) if p.strip()]
+    if len(parts) >= 2:
+        final = parts[-1]
+        thinking = "\n\n".join(parts[:-1])
+        thinking = _THINKING_PREFIX.sub("", thinking, count=1).strip()
+        return final, thinking
+
+    # Fallback: last paragraph after a blank line.
+    paras = [p.strip() for p in re.split(r"\n\s*\n+", stripped) if p.strip()]
+    if len(paras) >= 2:
+        final = paras[-1]
+        thinking = "\n\n".join(paras[:-1])
+        thinking = _THINKING_PREFIX.sub("", thinking, count=1).strip()
+        # Avoid treating a trailing English meta sentence as the answer when it's
+        # clearly still part of the scratchpad.
+        if final.lower().startswith(("thinking:", "need ", "let's ", "we ", "i ")):
+            thinking = _THINKING_PREFIX.sub("", stripped, count=1).strip()
+            return "", thinking
+        return final, thinking
+
+    thinking = _THINKING_PREFIX.sub("", stripped, count=1).strip()
+    return "", thinking
 
 
 def summarize_results(results: dict[str, Any] | None) -> dict[str, Any]:
@@ -63,14 +99,17 @@ def build_report_view(results: dict[str, Any] | None) -> dict[str, Any]:
         grading = row.get("gradingResult") or {}
         provider = _provider_label(row)
         prompt = _prompt_label(row, prompts)
-        output = ""
+        raw_output = ""
         response = row.get("response")
         if isinstance(response, dict):
-            output = response.get("output") or response.get("text") or ""
+            raw_output = response.get("output") or response.get("text") or ""
         elif isinstance(response, str):
-            output = response
+            raw_output = response
         else:
-            output = row.get("output") or ""
+            raw_output = row.get("output") or ""
+        if not isinstance(raw_output, str):
+            raw_output = str(raw_output)
+        output, thinking = split_thinking_output(raw_output)
 
         success = bool(row.get("success") or row.get("pass"))
         has_grade = row.get("gradingResult") is not None or row.get("response") is not None
@@ -88,6 +127,7 @@ def build_report_view(results: dict[str, Any] | None) -> dict[str, Any]:
                 "prompt": prompt,
                 "vars": row.get("vars") or test_case.get("vars") or {},
                 "output": output,
+                "thinking": thinking,
                 "success": success,
                 "score": row.get("score"),
                 "latencyMs": row.get("latencyMs") or row.get("latency"),
@@ -123,6 +163,7 @@ def results_to_csv(results: dict[str, Any] | None) -> str:
             "prompt",
             "vars",
             "output",
+            "thinking",
             "success",
             "score",
             "latencyMs",

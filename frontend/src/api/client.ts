@@ -4,6 +4,8 @@ import type {
   DashboardStats,
   EvalRunDetail,
   EvalRunSummary,
+  ProviderProbeRequest,
+  ProviderProbeResponse,
   ReportView,
 } from '@/types'
 
@@ -33,6 +35,8 @@ export const api = {
   }) => http.post<EvalRunSummary>('/runs', payload).then((r) => r.data),
   deleteRun: (id: string) => http.delete(`/runs/${id}`).then((r) => r.data),
   getReport: (id: string) => http.get<ReportView>(`/runs/${id}/report`).then((r) => r.data),
+  probeProvider: (payload: ProviderProbeRequest) =>
+    http.post<ProviderProbeResponse>('/providers/probe', payload).then((r) => r.data),
 }
 
 export default http

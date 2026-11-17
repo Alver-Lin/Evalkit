@@ -183,8 +183,8 @@ npm run build          # 输出 frontend/dist
 1. **新建配置**：填写任务名称、描述，进入详情编辑
 2. **可视化配置**（推荐）：分步填写
    - 基本信息：任务名称、描述
-   - 提示词：一条或多条 Prompt（支持 `{{var}}`）
    - 供应商：见下方「供应商格式要求」
+   - 提示词：OpenAI 兼容写对话 Prompt；自定义 HTTP 写请求 Body JSON（支持 `{{var}}`）
    - 测试用例：vars + 断言（断言可空）；可配全局断言，详见 [6.3 添加断言](#63-添加断言)
 3. **YAML 模式**：直接编辑 promptfoo 配置，保存时校验必须含 `prompts` 与 `providers`/`targets`
 4. **运行**：右侧设置并发数、是否使用缓存，点「运行」
@@ -195,17 +195,67 @@ npm run build          # 输出 frontend/dist
 
 遵循 [promptfoo Providers](https://www.promptfoo.dev/docs/providers/) 约定。可视化表单与 YAML 最终都会落到同样的 `providers` 配置。
 
+可视化里点 **新建供应商**，先选择接入方式：
+
+| 类型 | 适用场景 |
+|------|----------|
+| **自定义 HTTP** | 任意 HTTP/SSE Agent 接口（URL + 方法 + Header；Body 写在提示词） |
+| **OpenAI 兼容** | OpenAI / DeepSeek / 其它 Chat Completions 兼容服务 |
+
+#### 可视化：自定义 HTTP
+
+| 字段 | 是否必填 | 说明 |
+|------|----------|------|
+| 名称 | 建议填 | 对应 YAML `label` |
+| 描述 | 可选 | 仅 UI 保存，不写入 promptfoo YAML |
+| 请求方法 | **必填** | 默认 `POST` → `config.method` |
+| 超时（秒） | **必填** | 默认 `60` → `config.timeout` |
+| URL | **必填** | 完整 `https://...`，作为 Provider `id` |
+| Header | 可选 | 键值对 → `config.headers`；Value 支持模板变量 |
+
+请求 Body 写在 **提示词** 步骤（JSON + `{{变量}}`），供应商侧固定 `body: '{{prompt}}'`。测试用例用 vars 填变量（如 `message`）。默认 SSE `transformResponse` 仅在运行时注入，不写入用户 YAML。
+
+示例（可视化保存后的 YAML 形态）：
+
+```yaml
+prompts:
+  - |
+    {
+      "message": "{{message}}",
+      "scenario": null,
+      "client_id": "your-client-id",
+      "session_id": "your-session-id",
+      "selected_kbs": ["public_kingbase"]
+    }
+
+providers:
+  - id: https://example.com/ai/agent/sse
+    label: 基层Agent
+    config:
+      method: POST
+      timeout: 60
+      headers:
+        Content-Type: application/json
+      body: '{{prompt}}'
+
+tests:
+  - vars:
+      message: 辖区内有多少未婚人员
+```
+
+#### OpenAI 兼容 / YAML Provider ID
+
 **真正必填的只有 Provider ID**，格式为 `provider:model`（或带子类型的 `provider:type:model`），用来指定适配器与模型。常见写法：
 
 | Provider ID 示例 | 含义 |
 |------------------|------|
 | `openai:gpt-4o-mini` | OpenAI 官方（简写） |
-| `openai:chat:deepseek-chat` | OpenAI Chat Completions 兼容接口，模型名为 `deepseek-chat` |
+| `openai:chat:deepseek-flash` | OpenAI Chat Completions 兼容接口，模型名为 `deepseek-flash` |
 | `anthropic:messages:claude-...` | Anthropic |
 | `python:custom_provider.py` | 本地 Python Provider |
-| `https://...` | 直接 HTTP 端点 |
+| `https://...` | 直接 HTTP 端点（等同自定义 HTTP） |
 
-可视化表单其它字段：
+OpenAI 兼容表单其它字段：
 
 | 字段 | 是否必填 | 说明 |
 |------|----------|------|
@@ -231,18 +281,19 @@ export OPENAI_API_KEY=sk-...
 
 #### DeepSeek
 
-当前内置 promptfoo **0.125.x 不识别裸写 `deepseek`**，需走 OpenAI 兼容接口：
+当前内置 promptfoo **0.125.x 不识别裸写 `deepseek`**，需走 OpenAI 兼容接口。  
+官方已下线 `deepseek-chat`，请使用 `deepseek-flash`（或 `deepseek-v4-pro`）：
 
 ```yaml
 providers:
-  - id: openai:chat:deepseek-chat
+  - id: openai:chat:deepseek-flash
     label: deepseek
     config:
       apiKey: sk-...
       apiBaseUrl: https://api.deepseek.com/v1
 ```
 
-可视化里 Provider ID 填 `deepseek` 或 `deepseek:deepseek-chat` 时，保存会自动规范化为上述格式，并默认 Host `https://api.deepseek.com/v1`。最少填三项：Provider ID、API Key、API Host。
+可视化里 Provider ID 填 `deepseek` 或 `deepseek:deepseek-flash` 时，保存会自动规范化为上述格式，并默认 Host `https://api.deepseek.com/v1`。最少填三项：Provider ID、API Key、API Host。
 
 #### 本地 Python Provider
 
@@ -285,7 +336,7 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 | 类型 | 中文名 | 适用场景 | YAML 示例 |
 |------|--------|----------|-----------|
 | `similar` / `similar:cosine` / `similar:dot` / `similar:euclidean` | 语义相似 | 语义接近即可，不要求原文一致 | <pre>- type: similar<br>  value: 法国的首都是巴黎<br>  threshold: 0.8</pre> |
-| `llm-rubric` | 模型评分标准 | 用自然语言标准让 LLM Judge 打分 | <pre>- type: llm-rubric<br>  value: 回答准确、有帮助，且不道歉推诿<br>  threshold: 0.7</pre> |
+| `llm-rubric` | 模型评分标准 | 用自然语言标准让 LLM Judge 打分；运行时自动使用中文评分提示（不写入用户 YAML），判定说明（reason）为简体中文 | <pre>- type: llm-rubric<br>  value: 回答准确、有帮助，且不道歉推诿<br>  threshold: 0.7</pre> |
 | `factuality` / `model-graded-factuality` | 事实性 | 对照参考事实句是否一致 | <pre>- type: factuality<br>  value: 萨克拉门托是加利福尼亚州的首府</pre> |
 | `model-graded-closedqa` | 封闭问答评分 | 是否满足某条要求（如不道歉） | <pre>- type: model-graded-closedqa<br>  value: 回答不道歉、直接给出结论</pre> |
 | `answer-relevance` | 答案相关性 | 输出是否答到原问题上 | <pre>- type: answer-relevance<br>  threshold: 0.7</pre> |
@@ -309,7 +360,7 @@ YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）
 | `javascript` / `python` / `ruby` | 自定义脚本 | 复杂规则 | <pre>- type: javascript<br>  value: output.length &lt; 100</pre> |
 | `webhook` | Webhook | 远端打分 | <pre>- type: webhook<br>  value: https://example.com/grade</pre> |
 | `levenshtein` | 编辑距离 | 允许少量字符差异 | <pre>- type: levenshtein<br>  value: 你好世界<br>  threshold: 2</pre> |
-| `word-count` | 词数 | 长度约束 | <pre>- type: word-count<br>  threshold: 50</pre> |
+| `word-count`（可视化「字符数」） | 字符数 | 中英数等均计 1（去空白）；保存为 `javascript` | 可视化填最小/最大即可 |
 
 ##### 结构 / 格式
 
