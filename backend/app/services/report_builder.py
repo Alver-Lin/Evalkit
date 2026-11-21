@@ -230,6 +230,29 @@ def _prompt_label(row: dict[str, Any], prompts: list[Any]) -> str:
     return "prompt"
 
 
+def _display_assert_type(assertion: Any, reason: Any = None) -> str | None:
+    """Map runtime-expanded asserts back to the visual type (e.g. javascript → word-count)."""
+    if not isinstance(assertion, dict):
+        return None
+    raw = assertion.get("type")
+    if raw is None:
+        return None
+    label = str(raw)
+    lowered = label.lower()
+    value = assertion.get("value")
+    value_text = value if isinstance(value, str) else ""
+    reason_text = str(reason or "")
+    is_char_count = (
+        "evalkit:char-count" in value_text
+        or "字符数" in reason_text
+        or ("const n = [...text].length" in value_text and "inRange" in value_text)
+    )
+    if is_char_count and lowered in {"javascript", "js"}:
+        # Negated word-count expands to the same javascript type; reason still says 字符数.
+        return "word-count"
+    return label
+
+
 def _assertion_details(grading: Any) -> list[dict[str, Any]]:
     if not isinstance(grading, dict):
         return []
@@ -239,12 +262,15 @@ def _assertion_details(grading: Any) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             continue
         assertion = item.get("assertion") or {}
+        reason = item.get("reason")
         details.append(
             {
-                "type": assertion.get("type") if isinstance(assertion, dict) else None,
+                "type": _display_assert_type(assertion, reason)
+                if isinstance(assertion, dict)
+                else None,
                 "pass": item.get("pass"),
                 "score": item.get("score"),
-                "reason": item.get("reason"),
+                "reason": reason,
             }
         )
     return details

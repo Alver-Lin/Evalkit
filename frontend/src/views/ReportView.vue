@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { MenuProps } from 'ant-design-vue'
-import { ArrowLeftOutlined, DownOutlined } from '@ant-design/icons-vue'
+import { ArrowLeftOutlined, DownOutlined, InfoCircleFilled } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -11,6 +11,7 @@ import { BarChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { api } from '@/api/client'
+import { getAssertDisplayLabel } from '@/constants/assertOptions'
 import type { EvalRunDetail, ReportRow, ReportView as ReportViewData } from '@/types'
 import StatusTag from '@/components/StatusTag.vue'
 
@@ -40,8 +41,32 @@ const matrixFiltersReady = ref(false)
 const detailOpen = ref(false)
 const detailRow = ref<ReportRow | null>(null)
 const matrixPage = ref(1)
-const matrixPageSize = 10
+const matrixPageSize = 20
 let timer: number | undefined
+
+const isRunInFlight = computed(
+  () => run.value?.status === 'pending' || run.value?.status === 'running',
+)
+
+const runningCompleted = computed(() => {
+  if (!run.value) return 0
+  const explicit = Number(run.value.completed_count)
+  if (Number.isFinite(explicit) && explicit > 0) return explicit
+  return (run.value.pass_count || 0) + (run.value.fail_count || 0) + (run.value.error_count || 0)
+})
+
+const runningTotal = computed(() => {
+  if (!run.value) return 0
+  return Math.max(Number(run.value.total_count) || 0, runningCompleted.value)
+})
+
+/** Real completion ratio from streamed JSONL progress. */
+const runningProgress = computed(() => {
+  if (!run.value || !isRunInFlight.value) return 0
+  const total = runningTotal.value
+  if (!total) return 0
+  return Math.max(0, Math.min(100, Math.round((runningCompleted.value / total) * 100)))
+})
 
 const resultFilterOptions = [
   { label: '全部结果', value: 'all' },
@@ -568,8 +593,39 @@ function reportFileUrl(kind: 'json' | 'html' | 'csv') {
   return `/api/runs/${route.params.id}/report.${kind}`
 }
 
-function download(kind: 'json' | 'html' | 'csv') {
-  const url = reportFileUrl(kind)
+async function download(kind: 'json' | 'html' | 'csv') {
+  const url = `${reportFileUrl(kind)}?t=${Date.now()}`
+  // HTML: fetch as blob so the tab never opens a stale Downloads/copy of promptfoo HTML.
+  if (kind === 'html') {
+    try {
+      message.loading({ content: '正在生成报告…', key: 'export-html', duration: 0 })
+      const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' })
+      if (!res.ok) {
+        throw new Error((await res.text()) || `HTTP ${res.status}`)
+      }
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+      if (!opened) {
+        // Fallback: force download if popup blocked.
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = `evalkit-report-${String(route.params.id)}.html`
+        a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        message.warning({ content: '浏览器拦截了新窗口，已改为下载文件', key: 'export-html' })
+      } else {
+        message.success({ content: '已打开 EvalKit 报告', key: 'export-html' })
+      }
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+    } catch (err: any) {
+      message.error({ content: err?.message || '导出 HTML 失败', key: 'export-html' })
+    }
+    return
+  }
+
   // Always open in a new tab. Never navigate the SPA away to /api/... (that breaks back/refresh).
   const opened = window.open(url, '_blank', 'noopener,noreferrer')
   if (!opened) {
@@ -579,7 +635,7 @@ function download(kind: 'json' | 'html' | 'csv') {
 
 const onExportMenuClick: MenuProps['onClick'] = ({ key }) => {
   if (key === 'json' || key === 'csv' || key === 'html') {
-    download(key)
+    void download(key)
   }
 }
 
@@ -601,7 +657,7 @@ onMounted(() => {
         // keep polling until user leaves
       }
     }
-  }, 2000)
+  }, 1500)
 })
 
 watch(
@@ -631,6 +687,9 @@ onUnmounted(() => {
               </a-tooltip>
               <span class="task-name" :title="run.config_name">{{ run.config_name || '未命名任务' }}</span>
               <StatusTag :status="run.status" />
+              <span v-if="isRunInFlight" class="meta-item running-pct mono">
+                {{ runningCompleted }}/{{ runningTotal || '—' }} · {{ runningProgress }}%
+              </span>
               <span class="meta-item">
                 通过率
                 <strong class="mono accent">{{ run.pass_rate }}%</strong>
@@ -673,13 +732,32 @@ onUnmounted(() => {
             show-icon
             :message="run.error || '测评失败'"
           />
-          <a-alert
-            v-if="run.status === 'running' || run.status === 'pending'"
-            class="meta-alert"
-            type="info"
-            show-icon
-            message="测评进行中，页面会自动刷新"
-          />
+          <div
+            v-if="isRunInFlight"
+            class="meta-alert running-banner"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="running-banner-head">
+              <InfoCircleFilled class="running-banner-icon" />
+              <span class="running-banner-text">
+                测评进行中，页面会自动刷新
+                <span class="running-banner-count mono">
+                  （已完成 {{ runningCompleted }}/{{ runningTotal || '—' }}）
+                </span>
+              </span>
+              <span class="running-banner-pct mono">{{ runningProgress }}%</span>
+            </div>
+            <a-progress
+              class="running-banner-bar"
+              :percent="runningProgress"
+              :show-info="false"
+              status="active"
+              :stroke-color="{ from: '#5f8f88', to: '#0f766e' }"
+              trail-color="rgba(255, 255, 255, 0.45)"
+              :stroke-width="10"
+            />
+          </div>
         </div>
 
         <template v-if="report">
@@ -919,7 +997,7 @@ onUnmounted(() => {
           <label>断言</label>
           <div v-if="detailRow.assertions?.length" class="assert-list">
             <div v-for="(a, idx) in detailRow.assertions" :key="idx" class="assert-line">
-              <span class="assert-type" :class="a.pass ? 'ok' : 'fail'">{{ a.type || 'assert' }}</span>
+              <span class="assert-type" :class="a.pass ? 'ok' : 'fail'">{{ getAssertDisplayLabel(a.type) }}</span>
               <span class="assert-reason">{{ a.reason || (a.pass ? '通过' : '未通过') }}</span>
             </div>
           </div>
@@ -996,41 +1074,42 @@ onUnmounted(() => {
 }
 
 .report-page {
-  height: 100%;
-  min-height: 0;
-  flex: 1;
+  height: auto;
+  min-height: 100%;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .page-spin {
-  flex: 1;
-  min-height: 0;
-  height: 0;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .page-spin :deep(.ant-spin-nested-loading),
 .page-spin :deep(.ant-spin-container) {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .report-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 1;
+  flex: 0 0 auto;
+  height: auto;
   min-height: 0;
-  height: 100%;
-  overflow: hidden;
+  overflow: visible;
+  padding-bottom: 24px;
 }
 
 .report-body > .meta,
@@ -1040,6 +1119,68 @@ onUnmounted(() => {
 
 .meta-alert {
   margin-top: 12px;
+}
+
+.running-pct {
+  color: var(--ek-accent-ink, #0b5f59);
+  font-weight: 500;
+}
+
+.running-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #a7b5b2;
+  color: #1f2937;
+}
+
+.running-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.running-banner-icon {
+  flex: 0 0 auto;
+  font-size: 14px;
+  color: #334155;
+}
+
+.running-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.running-banner-count {
+  margin-left: 4px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.running-banner-pct {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.running-banner-bar {
+  margin: 0;
+  line-height: 1;
+}
+
+.running-banner-bar :deep(.ant-progress-outer) {
+  margin-inline-end: 0;
+  padding-inline-end: 0;
+}
+
+.running-banner-bar :deep(.ant-progress-inner) {
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .charts {
@@ -1053,13 +1194,13 @@ onUnmounted(() => {
 }
 
 .detail-panel {
-  padding: 20px 24px 0;
-  flex: 1 1 auto;
+  padding: 20px 24px 8px;
+  flex: 0 0 auto;
+  height: auto;
   min-height: 0;
-  height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .detail-panel .section-title,
@@ -1068,17 +1209,19 @@ onUnmounted(() => {
 }
 
 .detail-body {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  height: auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .table-scroll {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  height: auto;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 
 .pager {

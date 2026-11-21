@@ -3,6 +3,7 @@ import type { GraderMeta } from '@/types'
 import {
   normalizeAssert,
   parseAssertYaml,
+  serializeOneAssert,
   type VisualAssert,
   type VisualTest,
 } from '@/utils/promptfooConfig'
@@ -319,4 +320,70 @@ export function sampleAssertYaml(): string {
     ],
     { lineWidth: 120, noRefs: true },
   ).trim()
+}
+
+/** Serialize visual asserts to YAML text for CSV `assert` column. */
+export function assertsToYaml(asserts: VisualAssert[], graders: GraderMeta[] = []): string {
+  const list = (asserts || [])
+    .map((item) => serializeOneAssert(item, graders))
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+  if (!list.length) return ''
+  return dump(list, { lineWidth: 120, noRefs: true }).trim()
+}
+
+function parseVarsText(varsText: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(varsText || '{}')
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const out: Record<string, string> = {}
+      for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+        out[key] = value == null ? '' : String(value)
+      }
+      return out
+    }
+  } catch {
+    // ignore
+  }
+  return {}
+}
+
+function csvEscapeCell(value: string) {
+  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`
+  return value
+}
+
+/**
+ * Build import-compatible CSV for current visual tests.
+ * Columns: description + var names + assert (YAML).
+ */
+export function buildExportedTestsCsv(
+  tests: VisualTest[],
+  preferredVarNames: string[] = [],
+  graders: GraderMeta[] = [],
+): string {
+  const varNames = new Set<string>(preferredVarNames)
+  for (const test of tests) {
+    for (const key of Object.keys(parseVarsText(test.varsText))) {
+      if (key) varNames.add(key)
+    }
+  }
+  const vars = preferredVarNames.length
+    ? [
+        ...preferredVarNames,
+        ...Array.from(varNames).filter((name) => !preferredVarNames.includes(name)),
+      ]
+    : Array.from(varNames)
+
+  const headers = ['description', ...vars, 'assert']
+  const lines = [headers.map(csvEscapeCell).join(',')]
+  for (const test of tests) {
+    const rowVars = parseVarsText(test.varsText)
+    const cells = [
+      csvEscapeCell(test.description || ''),
+      ...vars.map((name) => csvEscapeCell(rowVars[name] ?? '')),
+      csvEscapeCell(assertsToYaml(test.asserts || [], graders)),
+    ]
+    lines.push(cells.join(','))
+  }
+  return `\uFEFF${lines.join('\n')}\n`
 }

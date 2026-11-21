@@ -1,0 +1,3829 @@
+﻿description,orgCode,tabCode,requirement,metricId,targetLength,style,draftText,assert
+AI帮写_社区领导_日常综合-社区人口与户数-50字-正式公文,128173,DAILY_COMP,,daily_cm_pop,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-50字-精炼简报,128173,DAILY_COMP,,daily_cm_pop,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-50字-通俗通报,128173,DAILY_COMP,,daily_cm_pop,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-100字-正式公文,128173,DAILY_COMP,,daily_cm_pop,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-100字-精炼简报,128173,DAILY_COMP,,daily_cm_pop,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-100字-通俗通报,128173,DAILY_COMP,,daily_cm_pop,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-200字-正式公文,128173,DAILY_COMP,,daily_cm_pop,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-200字-精炼简报,128173,DAILY_COMP,,daily_cm_pop,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-200字-通俗通报,128173,DAILY_COMP,,daily_cm_pop,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-自定义字符-正式公文,128173,DAILY_COMP,,daily_cm_pop,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-自定义字符-精炼简报,128173,DAILY_COMP,,daily_cm_pop,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-社区人口与户数-自定义字符-通俗通报,128173,DAILY_COMP,,daily_cm_pop,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／社区人口与户数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    本社区现有居民10,838户，登记总人口17,896人，其中户籍人口4人。网格常住人口底数清晰，台账按月比对核准。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-50字-正式公文,128173,DAILY_COMP,,daily_cm_sep,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-50字-精炼简报,128173,DAILY_COMP,,daily_cm_sep,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-50字-通俗通报,128173,DAILY_COMP,,daily_cm_sep,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-100字-正式公文,128173,DAILY_COMP,,daily_cm_sep,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-100字-精炼简报,128173,DAILY_COMP,,daily_cm_sep,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-100字-通俗通报,128173,DAILY_COMP,,daily_cm_sep,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-200字-正式公文,128173,DAILY_COMP,,daily_cm_sep,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-200字-精炼简报,128173,DAILY_COMP,,daily_cm_sep,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-200字-通俗通报,128173,DAILY_COMP,,daily_cm_sep,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-自定义字符-正式公文,128173,DAILY_COMP,,daily_cm_sep,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-自定义字符-精炼简报,128173,DAILY_COMP,,daily_cm_sep,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-人户分离台账-自定义字符-通俗通报,128173,DAILY_COMP,,daily_cm_sep,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／人户分离台账。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    人户分离方面，本社区登记人在户不在4,433人，户在人不在4,478人。网格员按月开展常态核查，动态更新管理台账。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-50字-正式公文,128173,DAILY_COMP,,daily_cm_key,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-50字-精炼简报,128173,DAILY_COMP,,daily_cm_key,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-50字-通俗通报,128173,DAILY_COMP,,daily_cm_key,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-100字-正式公文,128173,DAILY_COMP,,daily_cm_key,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-100字-精炼简报,128173,DAILY_COMP,,daily_cm_key,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-100字-通俗通报,128173,DAILY_COMP,,daily_cm_key,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-200字-正式公文,128173,DAILY_COMP,,daily_cm_key,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-200字-精炼简报,128173,DAILY_COMP,,daily_cm_key,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-200字-通俗通报,128173,DAILY_COMP,,daily_cm_key,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-自定义字符-正式公文,128173,DAILY_COMP,,daily_cm_key,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-自定义字符-精炼简报,128173,DAILY_COMP,,daily_cm_key,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-重点关爱对象-自定义字符-通俗通报,128173,DAILY_COMP,,daily_cm_key,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／重点关爱对象。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    重点关爱对象方面，本网格登记独居老人555人、失能老人492人、残疾人517人，均已落实网格责任人帮扶包保。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-50字-正式公文,128173,DAILY_COMP,,daily_cm_child,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-50字-精炼简报,128173,DAILY_COMP,,daily_cm_child,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-50字-通俗通报,128173,DAILY_COMP,,daily_cm_child,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-100字-正式公文,128173,DAILY_COMP,,daily_cm_child,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-100字-精炼简报,128173,DAILY_COMP,,daily_cm_child,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-100字-通俗通报,128173,DAILY_COMP,,daily_cm_child,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-200字-正式公文,128173,DAILY_COMP,,daily_cm_child,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-200字-精炼简报,128173,DAILY_COMP,,daily_cm_child,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-200字-通俗通报,128173,DAILY_COMP,,daily_cm_child,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-自定义字符-正式公文,128173,DAILY_COMP,,daily_cm_child,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-自定义字符-精炼简报,128173,DAILY_COMP,,daily_cm_child,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_日常综合-托育与少儿底数-自定义字符-通俗通报,128173,DAILY_COMP,,daily_cm_child,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：日常综合／托育与少儿底数。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    辖区1至3岁婴幼儿2人，3至6岁学龄前儿童33人。数据按月更新，支撑适龄入园入托需求摸排。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-50字-正式公文,128173,ELDER_CARE,,elder_cm_visit,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-50字-精炼简报,128173,ELDER_CARE,,elder_cm_visit,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-50字-通俗通报,128173,ELDER_CARE,,elder_cm_visit,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-100字-正式公文,128173,ELDER_CARE,,elder_cm_visit,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-100字-精炼简报,128173,ELDER_CARE,,elder_cm_visit,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-100字-通俗通报,128173,ELDER_CARE,,elder_cm_visit,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-200字-正式公文,128173,ELDER_CARE,,elder_cm_visit,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-200字-精炼简报,128173,ELDER_CARE,,elder_cm_visit,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-200字-通俗通报,128173,ELDER_CARE,,elder_cm_visit,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-自定义字符-正式公文,128173,ELDER_CARE,,elder_cm_visit,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-自定义字符-精炼简报,128173,ELDER_CARE,,elder_cm_visit,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-重点关爱巡访老人-自定义字符-通俗通报,128173,ELDER_CARE,,elder_cm_visit,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／重点关爱巡访老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区重点关爱老人中，独居老人555人，失能老人492人，80岁以上高龄老人617人，网格责任人按期上门问安。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-50字-正式公文,128173,ELDER_CARE,,elder_cm_empty,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-50字-精炼简报,128173,ELDER_CARE,,elder_cm_empty,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-50字-通俗通报,128173,ELDER_CARE,,elder_cm_empty,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-100字-正式公文,128173,ELDER_CARE,,elder_cm_empty,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-100字-精炼简报,128173,ELDER_CARE,,elder_cm_empty,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-100字-通俗通报,128173,ELDER_CARE,,elder_cm_empty,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-200字-正式公文,128173,ELDER_CARE,,elder_cm_empty,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-200字-精炼简报,128173,ELDER_CARE,,elder_cm_empty,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-200字-通俗通报,128173,ELDER_CARE,,elder_cm_empty,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-自定义字符-正式公文,128173,ELDER_CARE,,elder_cm_empty,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-自定义字符-精炼简报,128173,ELDER_CARE,,elder_cm_empty,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-空巢与留守老人-自定义字符-通俗通报,128173,ELDER_CARE,,elder_cm_empty,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／空巢与留守老人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区现有空巢老人525人。网格员联合楼门长健全邻里守望机制，动态关注老人生活状态。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-50字-正式公文,128173,ELDER_CARE,,elder_cm_hard,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-50字-精炼简报,128173,ELDER_CARE,,elder_cm_hard,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-50字-通俗通报,128173,ELDER_CARE,,elder_cm_hard,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-100字-正式公文,128173,ELDER_CARE,,elder_cm_hard,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-100字-精炼简报,128173,ELDER_CARE,,elder_cm_hard,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-100字-通俗通报,128173,ELDER_CARE,,elder_cm_hard,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-200字-正式公文,128173,ELDER_CARE,,elder_cm_hard,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-200字-精炼简报,128173,ELDER_CARE,,elder_cm_hard,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-200字-通俗通报,128173,ELDER_CARE,,elder_cm_hard,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-自定义字符-正式公文,128173,ELDER_CARE,,elder_cm_hard,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-自定义字符-精炼简报,128173,ELDER_CARE,,elder_cm_hard,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-特困重残老年人-自定义字符-通俗通报,128173,ELDER_CARE,,elder_cm_hard,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／特困重残老年人。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区失能老人492人、低保人员5,297人，均已建立精细化一人一档，优先落实政策帮扶救助。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-50字-正式公文,128173,ELDER_CARE,,elder_cm_alone,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-50字-精炼简报,128173,ELDER_CARE,,elder_cm_alone,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-50字-通俗通报,128173,ELDER_CARE,,elder_cm_alone,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-100字-正式公文,128173,ELDER_CARE,,elder_cm_alone,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-100字-精炼简报,128173,ELDER_CARE,,elder_cm_alone,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-100字-通俗通报,128173,ELDER_CARE,,elder_cm_alone,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-200字-正式公文,128173,ELDER_CARE,,elder_cm_alone,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-200字-精炼简报,128173,ELDER_CARE,,elder_cm_alone,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-200字-通俗通报,128173,ELDER_CARE,,elder_cm_alone,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-自定义字符-正式公文,128173,ELDER_CARE,,elder_cm_alone,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-自定义字符-精炼简报,128173,ELDER_CARE,,elder_cm_alone,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_老龄关爱-独居老人独居房屋-自定义字符-通俗通报,128173,ELDER_CARE,,elder_cm_alone,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：老龄关爱／独居老人独居房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区独居老人555人，登记单人居住房屋1,827套。网格逐户核实居住现状，健全应急联系人信息。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-50字-正式公文,128173,SAFETY,,safe_cm_dense,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-50字-精炼简报,128173,SAFETY,,safe_cm_dense,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-50字-通俗通报,128173,SAFETY,,safe_cm_dense,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-100字-正式公文,128173,SAFETY,,safe_cm_dense,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-100字-精炼简报,128173,SAFETY,,safe_cm_dense,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-100字-通俗通报,128173,SAFETY,,safe_cm_dense,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-200字-正式公文,128173,SAFETY,,safe_cm_dense,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-200字-精炼简报,128173,SAFETY,,safe_cm_dense,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-200字-通俗通报,128173,SAFETY,,safe_cm_dense,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-自定义字符-正式公文,128173,SAFETY,,safe_cm_dense,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-自定义字符-精炼简报,128173,SAFETY,,safe_cm_dense,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-5人及以上居住房屋-自定义字符-通俗通报,128173,SAFETY,,safe_cm_dense,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／5人及以上居住房屋。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记居住5人及以上房屋70套，占社区已入住房屋2.2%。社区严格落实房屋台账动态比对，摸清居住实际人数。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-50字-正式公文,128173,SAFETY,,safe_cm_alone,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-50字-精炼简报,128173,SAFETY,,safe_cm_alone,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-50字-通俗通报,128173,SAFETY,,safe_cm_alone,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-100字-正式公文,128173,SAFETY,,safe_cm_alone,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-100字-精炼简报,128173,SAFETY,,safe_cm_alone,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-100字-通俗通报,128173,SAFETY,,safe_cm_alone,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-200字-正式公文,128173,SAFETY,,safe_cm_alone,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-200字-精炼简报,128173,SAFETY,,safe_cm_alone,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-200字-通俗通报,128173,SAFETY,,safe_cm_alone,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-自定义字符-正式公文,128173,SAFETY,,safe_cm_alone,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-自定义字符-精炼简报,128173,SAFETY,,safe_cm_alone,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-单人居住房屋排查-自定义字符-通俗通报,128173,SAFETY,,safe_cm_alone,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／单人居住房屋排查。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区登记单人居住房屋1,827套，登记独居老人555人。网格员定期核对居住人员变化，落实安全提示防范。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-50字-正式公文,128173,SAFETY,,safe_cm_float,50,formal,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-50字-精炼简报,128173,SAFETY,,safe_cm_float,50,brief,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-50字-通俗通报,128173,SAFETY,,safe_cm_float,50,plain,,"- type: word-count
+  min: 40
+  max: 60
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-100字-正式公文,128173,SAFETY,,safe_cm_float,100,formal,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-100字-精炼简报,128173,SAFETY,,safe_cm_float,100,brief,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-100字-通俗通报,128173,SAFETY,,safe_cm_float,100,plain,,"- type: word-count
+  min: 80
+  max: 120
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-200字-正式公文,128173,SAFETY,,safe_cm_float,200,formal,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-200字-精炼简报,128173,SAFETY,,safe_cm_float,200,brief,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-200字-通俗通报,128173,SAFETY,,safe_cm_float,200,plain,,"- type: word-count
+  min: 160
+  max: 240
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-自定义字符-正式公文,128173,SAFETY,,safe_cm_float,300,formal,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合正式公文风格：庄重严谨、逻辑清楚，使用规范陈述句客观归纳底数，不口语化、不用感叹句。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：正式公文。禁止走访、巡查、会议部署、慰问、整改等履职动作叙述，禁止政治套话、主观成效及安全稳定、无事故等定性结论。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-自定义字符-精炼简报,128173,SAFETY,,safe_cm_float,300,brief,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合精炼简报风格：单段短句，以“指标名称＋数值＋单位”为主，直陈核心数据，表达客观、紧凑、无冗余。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：精炼简报。禁止背景铺垫、修辞套话、主观评价、工作建议、下一步计划及履职动作叙述，不得用模糊定性代替数值或重复注水。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"
+AI帮写_社区领导_平安防范-流动人口与人户分离-自定义字符-通俗通报,128173,SAFETY,,safe_cm_float,300,plain,,"- type: word-count
+  min: 240
+  max: 360
+- type: llm-rubric
+  value: |
+    符合通俗通报风格：亲切平实、适合居民阅读，将专业指标转为易懂的大白话，称谓自然、群体描述中性温暖。仅评文风；符合或仅有轻微问题得0.8至1分，否则低于0.8。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    文风：通俗通报。禁止生僻公文术语、行政缩写、恐慌或污名化表述，不得声称已完成上门服务、清查、纳管等事项；允许一般登记联系提醒。仅按语义检查禁止内容，不核对底数、不按关键词误判。违规得0分，否则1分。
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+- type: llm-rubric
+  value: |
+    主题：平安防范／流动人口与人户分离。核对已提及事实的对象、数值、单位、增减及比例，不要求覆盖全部底数。不得补造缺失或【待核实】数据。千分位、等价单位换算不算错误。允许合理的口语化近似比例。有事实错误、无依据陈述、偏题或无实质信息得0分，否则1分。
+    参考底数快照（2026-11-21，仅作资料）：
+    <参考底数>
+    社区流动人口8,822人，人在户不在4,433人，户在人不在4,478人。社区常态化开展网格信息比对核查。
+    </参考底数>
+  threshold: 0.8
+  provider:
+    id: openai:chat:deepseek-flash
+    label: deepseek
+"

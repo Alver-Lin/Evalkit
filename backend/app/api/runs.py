@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 
-from app.models.schemas import EvalRunDetail, EvalRunRequest, EvalRunSummary
+from app.models.schemas import EvalRunDetail, EvalRunRequest, EvalRunSummary, EvalStatus
+from app.services.html_report import build_evalkit_html_report
 from app.services.promptfoo_runner import promptfoo_runner
 from app.services.report_builder import build_report_view, results_to_csv
+from app.services.run_progress import apply_progress_to_summary
 from app.services.store import config_store, run_store
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -57,6 +59,12 @@ def get_run(run_id: str) -> EvalRunDetail:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     run_dir = run_store.run_dir(run_id)
+    # Refresh live counts from JSONL so the UI sees real completion even if the
+    # background watcher tick hasn't flushed meta yet.
+    if summary.status in {EvalStatus.pending, EvalStatus.running}:
+        if apply_progress_to_summary(summary, run_dir):
+            run_store.save(summary)
+
     stdout = ""
     stderr = ""
     if (run_dir / "stdout.log").exists():
@@ -65,10 +73,12 @@ def get_run(run_id: str) -> EvalRunDetail:
         stderr = (run_dir / "stderr.log").read_text(encoding="utf-8")
 
     results = run_store.load_results(run_id)
+    has_results = results is not None or run_store.results_path(run_id).exists()
     return EvalRunDetail(
         **summary.model_dump(),
         results=results,
-        report_html_url=f"/api/runs/{run_id}/report.html" if run_store.html_path(run_id).exists() else None,
+        # EvalKit HTML is generated on demand from results.json (not promptfoo's HTML).
+        report_html_url=f"/api/runs/{run_id}/report.html" if has_results else None,
         report_json_url=f"/api/runs/{run_id}/report.json" if run_store.results_path(run_id).exists() else None,
         stdout=stdout,
         stderr=stderr,
@@ -95,15 +105,26 @@ def download_json(run_id: str) -> Response:
 
 @router.get("/{run_id}/report.html")
 def download_html(run_id: str) -> Response:
-    path = run_store.html_path(run_id)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="HTML report not found")
-    # Inline display so "HTML" opens the official promptfoo report in-browser.
-    return FileResponse(
-        path,
+    try:
+        summary = run_store.get(run_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    results = run_store.load_results(run_id)
+    if results is None:
+        raise HTTPException(status_code=404, detail="HTML report not found（尚无结果）")
+    view = build_report_view(results)
+    html_text = build_evalkit_html_report(summary, view)
+    # Persist for offline reuse; always regenerate so style stays current.
+    run_store.html_path(run_id).write_text(html_text, encoding="utf-8")
+    return HTMLResponse(
+        content=html_text,
         media_type="text/html; charset=utf-8",
-        filename=f"evalkit-{run_id}.html",
-        content_disposition_type="inline",
+        headers={
+            # Avoid browsers/proxies serving a previously downloaded promptfoo HTML.
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Content-Disposition": f'inline; filename="evalkit-report-{run_id}.html"',
+        },
     )
 
 

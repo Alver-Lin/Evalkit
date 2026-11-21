@@ -12,8 +12,14 @@ from app.models.schemas import EvalStatus
 from app.services.chinese_rubric import ensure_chinese_rubric_prompt
 from app.services.evalkit_asserts import ensure_evalkit_asserts
 from app.services.http_sse import ensure_http_sse_transform
-from app.services.report_builder import summarize_results
-from app.services.store import config_store, run_store
+from app.services.html_report import build_evalkit_html_report
+from app.services.report_builder import build_report_view, summarize_results
+from app.services.run_progress import (
+    apply_progress_to_summary,
+    count_expected_results,
+    progress_jsonl_path,
+)
+from app.services.store import run_store
 
 
 class PromptfooRunner:
@@ -40,18 +46,26 @@ class PromptfooRunner:
         max_concurrency: int,
         cache: bool,
     ) -> None:
-        summary = run_store.get(run_id)
-        summary.status = EvalStatus.running
-        summary.started_at = datetime.now(timezone.utc)
-        run_store.save(summary)
-
         run_dir = run_store.run_dir(run_id)
         results_json = run_store.results_path(run_id)
-        report_html = run_store.html_path(run_id)
+        progress_jsonl = progress_jsonl_path(run_dir)
 
         # Stage config + helpers into the run directory so relative provider
         # paths (e.g. python:custom_provider.py) resolve correctly.
         config_yaml = self._stage_config(config_id, run_dir)
+        expected_total = count_expected_results(config_yaml)
+
+        summary = run_store.get(run_id)
+        summary.status = EvalStatus.running
+        summary.started_at = datetime.now(timezone.utc)
+        summary.pass_count = 0
+        summary.fail_count = 0
+        summary.error_count = 0
+        summary.completed_count = 0
+        summary.pass_rate = 0.0
+        summary.total_count = expected_total
+        summary.error = None
+        run_store.save(summary)
 
         cmd = [
             *settings.resolve_promptfoo_cmd(),
@@ -62,8 +76,9 @@ class PromptfooRunner:
             str(max_concurrency),
             "--output",
             str(results_json),
+            # Stream one JSON object per finished case for live progress.
             "--output",
-            str(report_html),
+            str(progress_jsonl),
             "--no-progress-bar",
         ]
         if not cache:
@@ -80,9 +95,37 @@ class PromptfooRunner:
                 stderr=asyncio.subprocess.PIPE,
                 env=self._build_env(),
             )
-            stdout_b, stderr_b = await process.communicate()
-            stdout_chunks.append(stdout_b.decode("utf-8", errors="replace"))
-            stderr_chunks.append(stderr_b.decode("utf-8", errors="replace"))
+
+            async def _pump(stream: asyncio.StreamReader | None, sink: list[str], log_name: str) -> None:
+                if stream is None:
+                    return
+                chunks: list[bytes] = []
+                while True:
+                    block = await stream.read(65536)
+                    if not block:
+                        break
+                    chunks.append(block)
+                    text = b"".join(chunks).decode("utf-8", errors="replace")
+                    sink.clear()
+                    sink.append(text)
+                    (run_dir / log_name).write_text(text, encoding="utf-8")
+
+            stdout_task = asyncio.create_task(_pump(process.stdout, stdout_chunks, "stdout.log"))
+            stderr_task = asyncio.create_task(_pump(process.stderr, stderr_chunks, "stderr.log"))
+            progress_task = asyncio.create_task(self._watch_progress(run_id, run_dir))
+
+            returncode = await process.wait()
+            await asyncio.gather(stdout_task, stderr_task)
+            progress_task.cancel()
+            try:
+                await progress_task
+            except asyncio.CancelledError:
+                pass
+
+            # Final mid-run sync before reading results.json.
+            summary = run_store.get(run_id)
+            if apply_progress_to_summary(summary, run_dir):
+                run_store.save(summary)
 
             (run_dir / "stdout.log").write_text("".join(stdout_chunks), encoding="utf-8")
             (run_dir / "stderr.log").write_text("".join(stderr_chunks), encoding="utf-8")
@@ -94,12 +137,12 @@ class PromptfooRunner:
                     (summary.finished_at - summary.started_at).total_seconds() * 1000
                 )
 
-            if process.returncode != 0 and not results_json.exists():
+            if returncode != 0 and not results_json.exists():
                 summary.status = EvalStatus.failed
                 summary.error = (
                     "".join(stderr_chunks).strip()
                     or "".join(stdout_chunks).strip()
-                    or f"promptfoo exited with code {process.returncode}"
+                    or f"promptfoo exited with code {returncode}"
                 )
                 run_store.save(summary)
                 return
@@ -109,7 +152,8 @@ class PromptfooRunner:
             summary.pass_count = stats["pass_count"]
             summary.fail_count = stats["fail_count"]
             summary.error_count = stats["error_count"]
-            summary.total_count = stats["total_count"]
+            summary.total_count = stats["total_count"] or expected_total
+            summary.completed_count = stats["total_count"]
             summary.pass_rate = stats["pass_rate"]
             # Process finished, but mark failed when any case failed/errored.
             if stats["fail_count"] or stats["error_count"]:
@@ -124,6 +168,12 @@ class PromptfooRunner:
                 summary.status = EvalStatus.succeeded
                 summary.error = None
             run_store.save(summary)
+            # Write EvalKit-styled HTML (replaces promptfoo official report.html).
+            try:
+                html_text = build_evalkit_html_report(summary, build_report_view(results))
+                run_store.html_path(run_id).write_text(html_text, encoding="utf-8")
+            except Exception:
+                pass
         except Exception as exc:  # noqa: BLE001
             summary = run_store.get(run_id)
             summary.status = EvalStatus.failed
@@ -137,6 +187,18 @@ class PromptfooRunner:
             (run_dir / "stderr.log").write_text(
                 "\n".join(stderr_chunks + [str(exc)]), encoding="utf-8"
             )
+
+    async def _watch_progress(self, run_id: str, run_dir: Path) -> None:
+        """Poll streaming JSONL and persist live pass/fail/completed counts."""
+        while True:
+            try:
+                summary = run_store.get(run_id)
+                if apply_progress_to_summary(summary, run_dir):
+                    run_store.save(summary)
+            except Exception:
+                # Never crash the eval because progress polling failed.
+                pass
+            await asyncio.sleep(1.0)
 
     def _stage_config(self, config_id: str, run_dir: Path) -> Path:
         src = settings.configs_dir / config_id

@@ -25,6 +25,8 @@ export interface EvalRunSummary {
   fail_count: number
   error_count: number
   total_count: number
+  /** Finished cases so far while running (pass+fail+error). */
+  completed_count?: number
   pass_rate: number
   duration_ms?: number | null
 }

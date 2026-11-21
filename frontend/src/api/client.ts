@@ -50,6 +50,22 @@ export const api = {
   getReport: (id: string) => http.get<ReportView>(`/runs/${id}/report`).then((r) => r.data),
   probeProvider: (payload: ProviderProbeRequest) =>
     http.post<ProviderProbeResponse>('/providers/probe', payload).then((r) => r.data),
+  aiExtract: (payload: {
+    sample_text: string
+    source: 'sse' | 'json'
+    selected_values: Array<{ path: string; value: string }>
+    hint?: string
+    grader_id: string
+  }) =>
+    http
+      .post<{
+        ok: boolean
+        message: string
+        ai_script?: string | null
+        grader_id?: string | null
+        grader_name?: string | null
+      }>('/providers/ai-extract', payload, { timeout: 90000 })
+      .then((r) => r.data),
   listGraders: () => http.get<GraderMeta[]>('/graders').then((r) => r.data),
   getGrader: (id: string) => http.get<GraderMeta>(`/graders/${id}`).then((r) => r.data),
   createGrader: (payload: GraderPayload) =>

@@ -37,7 +37,7 @@ function go(key: string) {
         </div>
         <div>
           <div class="title">EvalKit</div>
-          <div class="subtitle">Promptfoo 评测工作台</div>
+          <div class="subtitle">评测工作台</div>
         </div>
       </div>
       <a-menu
@@ -233,18 +233,23 @@ function go(key: string) {
   flex-direction: column;
 }
 
-/* List/detail/report pages fill the viewport. */
+/* List/detail pages fill the viewport; report scrolls with the page. */
 .content > .list-page,
-.content > .detail-page,
-.content > .report-page {
+.content > .detail-page {
   flex: 1;
   min-height: 0;
   height: 100%;
 }
 
-.content > .detail-page,
-.content > .report-page {
+.content > .detail-page {
   overflow: hidden;
+}
+
+.content > .report-page {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
 }
 
 .content > .page:not(.list-page):not(.detail-page):not(.report-page) {

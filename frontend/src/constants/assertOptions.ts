@@ -198,6 +198,18 @@ export function getAssertMeta(type: string | undefined | null): AssertOption {
   )
 }
 
+/** Chinese label for report / result UI (handles `not-` prefix). */
+export function getAssertDisplayLabel(type: string | undefined | null): string {
+  const raw = (type || '').trim()
+  if (!raw) return '断言'
+  const lowered = raw.toLowerCase()
+  const negated = lowered.startsWith('not-')
+  const base = negated ? raw.slice(4) || raw : raw
+  const meta = getAssertMeta(base)
+  const label = meta.label && meta.label !== meta.value ? meta.label : base
+  return negated ? `非${label}` : label
+}
+
 export function assertShowsValue(type: string | undefined | null): boolean {
   return getAssertMeta(type).hasValue !== false
 }

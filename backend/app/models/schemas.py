@@ -62,6 +62,9 @@ class EvalRunSummary(BaseModel):
     fail_count: int = 0
     error_count: int = 0
     total_count: int = 0
+    completed_count: int = Field(
+        0, description="Finished cases so far (pass+fail+error); useful while running"
+    )
     pass_rate: float = 0.0
     duration_ms: Optional[int] = None
 
@@ -111,6 +114,27 @@ class ProviderProbeResponse(BaseModel):
         None, description="Truncated raw response body for visual extract preview"
     )
     content_type: Optional[str] = None
+
+
+class AiExtractSelectedValue(BaseModel):
+    path: str = Field(..., min_length=1, description="JSON path, e.g. data.document.content[0].text")
+    value: str = Field("", description="Example leaf value the user wants to keep")
+
+
+class AiExtractRequest(BaseModel):
+    sample_text: str = Field(..., min_length=1, description="Probe sample response body")
+    source: str = Field("json", pattern="^(sse|json)$")
+    selected_values: list[AiExtractSelectedValue] = Field(default_factory=list)
+    hint: str = ""
+    grader_id: str = Field(..., min_length=1, description="Grader from 模型评测配置")
+
+
+class AiExtractResponse(BaseModel):
+    ok: bool
+    message: str
+    ai_script: Optional[str] = None
+    grader_id: Optional[str] = None
+    grader_name: Optional[str] = None
 
 
 class GraderHttpHeader(BaseModel):

@@ -6,12 +6,14 @@ import {
   CloudUploadOutlined,
   DeleteOutlined,
   DownOutlined,
+  DownloadOutlined,
   PlusOutlined,
   UpOutlined,
   UploadOutlined,
 } from '@ant-design/icons-vue'
 import type { UploadFile, UploadProps } from 'ant-design-vue'
 import { api } from '@/api/client'
+import JsonCheckTree from '@/components/JsonCheckTree.vue'
 import type { GraderMeta } from '@/types'
 import {
   assertNeedsGrader,
@@ -23,6 +25,7 @@ import {
   applyResponseExtract,
   buildHttpProbeBody,
   createVisualAssert,
+  DEFAULT_AI_EXTRACT_HINT,
   defaultResponseExtract,
   discoverResponseFields,
   emptyHttpProvider,
@@ -51,7 +54,19 @@ import {
   type VisualHttpHeader,
   type VisualProvider,
 } from '@/utils/promptfooConfig'
-import { draftsToVisualTests, parseImportedTests, sampleAssertYaml } from '@/utils/importTests'
+import {
+  buildJsonPathTree,
+  getValueByJsonPath,
+  parseSampleJsonRoot,
+  suggestAiPaths,
+  type JsonPathNode,
+} from '@/utils/jsonPathSelect'
+import {
+  buildExportedTestsCsv,
+  draftsToVisualTests,
+  parseImportedTests,
+  sampleAssertYaml,
+} from '@/utils/importTests'
 
 const model = defineModel<VisualConfig>({ required: true })
 
@@ -280,11 +295,143 @@ function setExtractSource(provider: VisualProvider, source: ResponseExtractSourc
 
 function setExtractStrategy(provider: VisualProvider, strategy: ResponseExtractStrategy) {
   const patch: Partial<ResponseExtractConfig> = { strategy, pick: 'all' }
+  const sample = probeSampleOf(provider)
+  const root = sample ? parseSampleJsonRoot(sample.text, extractOf(provider).source) : null
   if (strategy === 'fields' && !extractOf(provider).fields.length) {
-    const discovered = discoveredFieldsOf(provider)
-    patch.fields = discovered.length ? discovered.slice(0, 3) : ['answer', 'content', 'sql']
+    // Prefer top-level keys for field-join; fall back to common leaf paths.
+    const topLevel = discoveredFieldsOf(provider)
+    patch.fields = topLevel.length
+      ? topLevel.slice(0, 3)
+      : root != null
+        ? suggestAiPaths(root, 8)
+        : ['answer', 'content', 'sql']
+  }
+  if (strategy === 'ai') {
+    patch.aiScript = ''
+    // Drop cleaners that smash nested JSON into "typetexttext…" noise.
+    const clean = extractOf(provider).clean.filter((op) => op === 'trim' || op === 'newlines')
+    patch.clean = clean
+    if (!extractOf(provider).aiHint.trim()) {
+      patch.aiHint = DEFAULT_AI_EXTRACT_HINT
+    }
+    if (!extractOf(provider).aiPaths.length) {
+      patch.aiPaths = root != null ? suggestAiPaths(root, 12) : []
+    }
   }
   applyResponseExtract(provider, patch)
+}
+
+function extractJsonTreeOf(provider: VisualProvider): JsonPathNode[] {
+  const sample = probeSampleOf(provider)
+  if (!sample) return []
+  const root = parseSampleJsonRoot(sample.text, extractOf(provider).source)
+  if (root == null) return []
+  return buildJsonPathTree(root)
+}
+
+function usesResponseTree(provider: VisualProvider): boolean {
+  const strategy = extractOf(provider).strategy
+  return strategy === 'fields' || strategy === 'ai'
+}
+
+function selectedTreePathsOf(provider: VisualProvider): string[] {
+  const cfg = extractOf(provider)
+  return cfg.strategy === 'ai' ? cfg.aiPaths : cfg.fields
+}
+
+function toggleTreePaths(provider: VisualProvider, paths: string[], checked: boolean) {
+  if (!paths.length) return
+  const cfg = extractOf(provider)
+  const pathSet = new Set(paths)
+  if (cfg.strategy === 'ai') {
+    const current = cfg.aiPaths
+    const next = checked
+      ? [...current, ...paths.filter((p) => !current.includes(p))]
+      : current.filter((item) => !pathSet.has(item))
+    applyResponseExtract(provider, {
+      strategy: 'ai',
+      aiPaths: next,
+      // Re-selecting paths invalidates previous AI script until regenerated.
+      aiScript: '',
+    })
+    return
+  }
+  const current = cfg.fields
+  const next = checked
+    ? [...current, ...paths.filter((p) => !current.includes(p))]
+    : current.filter((item) => !pathSet.has(item))
+  setExtractFields(provider, next)
+}
+
+function setAiHint(provider: VisualProvider, hint: string) {
+  applyResponseExtract(provider, { strategy: 'ai', aiHint: hint })
+}
+
+const aiExtractingIndex = ref<number | null>(null)
+const aiGraderByProvider = ref<Record<number, string>>({})
+
+function aiGraderIdOf(index: number): string | undefined {
+  return aiGraderByProvider.value[index] || firstGraderId() || undefined
+}
+
+function setAiGraderId(index: number, graderId: string | undefined) {
+  if (!graderId) {
+    delete aiGraderByProvider.value[index]
+    return
+  }
+  aiGraderByProvider.value[index] = graderId
+}
+
+async function runAiExtract(index: number) {
+  const provider = model.value.providers[index]
+  if (!provider) return
+  const sample = probeSampleOf(provider)
+  if (!sample) {
+    message.warning('请先「测试连通」获取测试响应')
+    return
+  }
+  const cfg = extractOf(provider)
+  if (!cfg.aiPaths.length) {
+    message.warning('请先勾选测试响应中想保留的内容')
+    return
+  }
+  const graderId = aiGraderIdOf(index)
+  if (!graderId) {
+    message.warning('请先在「模型评测配置」中添加评分模型，用于 AI 帮写')
+    return
+  }
+  const root = parseSampleJsonRoot(sample.text, cfg.source)
+  const selectedValues = cfg.aiPaths.map((path) => {
+    const value = root != null ? getValueByJsonPath(root, path) : ''
+    return {
+      path,
+      value: value == null ? '' : typeof value === 'string' ? value : JSON.stringify(value),
+    }
+  })
+  aiExtractingIndex.value = index
+  try {
+    const result = await api.aiExtract({
+      sample_text: sample.text,
+      source: cfg.source,
+      selected_values: selectedValues,
+      hint: cfg.aiHint.trim() || DEFAULT_AI_EXTRACT_HINT,
+      grader_id: graderId,
+    })
+    if (!result.ok || !result.ai_script) {
+      message.error(result.message || 'AI 帮写失败')
+      return
+    }
+    applyResponseExtract(provider, {
+      strategy: 'ai',
+      aiScript: result.ai_script,
+    })
+    message.success(result.message || '已生成提取规则')
+  } catch (err: any) {
+    const detail = err?.response?.data?.detail || err?.message || 'AI 帮写失败'
+    message.error(detail)
+  } finally {
+    if (aiExtractingIndex.value === index) aiExtractingIndex.value = null
+  }
 }
 
 function toggleExtractClean(provider: VisualProvider, op: ResponseExtractCleanOp) {
@@ -323,7 +470,19 @@ function extractRuleSummary(provider: VisualProvider): string {
       ? `SSE：原始 data 内容（数据清洗：${cleanLabel}）`
       : `JSON：完整响应（数据清洗：${cleanLabel}）`
   }
-  const fields = cfg.fields.length ? cfg.fields.join(' + ') : '（请勾选字段）'
+  if (cfg.strategy === 'ai') {
+    const source = cfg.source === 'sse' ? 'SSE' : 'JSON'
+    const pathLabel = cfg.aiPaths.length
+      ? `已勾选 ${cfg.aiPaths.length} 项`
+      : '（请勾选想保留的内容）'
+    const scriptLabel = cfg.aiScript.trim() ? '，AI 规则已生成' : ''
+    return `${source} → AI 取值 ${pathLabel}${scriptLabel}（数据清洗：${cleanLabel}）`
+  }
+  const fields = cfg.fields.length
+    ? cfg.fields.length <= 3
+      ? cfg.fields.join(' + ')
+      : `已勾选 ${cfg.fields.length} 项`
+    : '（请在上方勾选字段）'
   const source = cfg.source === 'sse' ? 'SSE' : 'JSON'
   return `${source} → 字段 ${fields}（数据清洗：${cleanLabel}）`
 }
@@ -483,8 +642,11 @@ function addTest() {
 }
 
 const testImportOpen = ref(false)
+const testImportModeOpen = ref(false)
 const testImportFileList = ref<UploadFile[]>([])
 const testImportSubmitting = ref(false)
+/** 追加 = append；覆盖 = replace all existing tests. */
+const testImportMode = ref<'append' | 'replace'>('append')
 
 function isBlankTest(index: number) {
   const test = model.value.tests[index]
@@ -496,12 +658,37 @@ function isBlankTest(index: number) {
 
 function openTestImport() {
   testImportFileList.value = []
+  testImportMode.value = 'append'
+  testImportModeOpen.value = false
   testImportOpen.value = true
+}
+
+function exportTests() {
+  if (!model.value.tests.length) {
+    message.warning('暂无测试用例可导出')
+    return
+  }
+  const content = buildExportedTestsCsv(model.value.tests, promptVarNames.value, graders.value)
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+  link.href = url
+  link.download = `evalkit-tests-${stamp}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+  message.success(`已导出 ${model.value.tests.length} 条测试用例`)
 }
 
 function closeTestImport() {
   testImportOpen.value = false
+  testImportModeOpen.value = false
   testImportFileList.value = []
+  testImportMode.value = 'append'
+}
+
+function closeTestImportMode() {
+  testImportModeOpen.value = false
 }
 
 function csvEscape(value: string) {
@@ -553,10 +740,21 @@ function onTestImportRemove() {
   testImportFileList.value = []
 }
 
-async function submitTestImport() {
+function submitTestImport() {
   const file = testImportFileList.value[0]?.originFileObj as File | undefined
   if (!file) {
     message.warning('请先选择文件')
+    return
+  }
+  testImportMode.value = 'append'
+  testImportModeOpen.value = true
+}
+
+async function confirmTestImport() {
+  const file = testImportFileList.value[0]?.originFileObj as File | undefined
+  if (!file) {
+    message.warning('请先选择文件')
+    testImportModeOpen.value = false
     return
   }
 
@@ -570,20 +768,24 @@ async function submitTestImport() {
       return
     }
 
-    if (
+    if (testImportMode.value === 'replace') {
+      model.value.tests = imported
+    } else if (
       !model.value.tests.length ||
       (model.value.tests.length === 1 && isBlankTest(0))
     ) {
+      // Append mode: empty / single blank placeholder → replace for convenience.
       model.value.tests = imported
     } else {
       model.value.tests.push(...imported)
     }
     testPage.value = Math.ceil(model.value.tests.length / pageSize) || 1
     const withAsserts = imported.filter((item) => item.asserts.length).length
+    const modeLabel = testImportMode.value === 'replace' ? '覆盖' : '追加'
     message.success(
       withAsserts
-        ? `已导入 ${imported.length} 条测试用例（其中 ${withAsserts} 条含断言）`
-        : `已导入 ${imported.length} 条测试用例`,
+        ? `已${modeLabel}导入 ${imported.length} 条测试用例（其中 ${withAsserts} 条含断言）`
+        : `已${modeLabel}导入 ${imported.length} 条测试用例`,
     )
     closeTestImport()
   } catch (error) {
@@ -663,6 +865,11 @@ function showsRange(assert: VisualAssert) {
 
 function showsGrader(assert: VisualAssert) {
   return assertNeedsGrader(assert.type)
+}
+
+function assertValueTooltip(assert: VisualAssert) {
+  const text = String(assert.value ?? '').trim()
+  return text || undefined
 }
 
 function valuePlaceholder(assert: VisualAssert) {
@@ -1031,7 +1238,15 @@ function removeDefaultAssert(index: number) {
                     <template v-else>
                       <div v-if="probeSampleOf(model.providers[index])" class="sample-block">
                         <div class="sample-meta">
-                          <span class="sample-label">测试响应</span>
+                          <span class="sample-label">
+                            测试响应
+                            <span
+                              v-if="usesResponseTree(model.providers[index])"
+                              class="sample-hint"
+                            >
+                              · 勾选要输出的字段
+                            </span>
+                          </span>
                           <span class="mono muted">
                             <template v-if="probeSampleOf(model.providers[index])!.statusCode != null">
                               HTTP {{ probeSampleOf(model.providers[index])!.statusCode }}
@@ -1041,7 +1256,21 @@ function removeDefaultAssert(index: number) {
                             </template>
                           </span>
                         </div>
-                        <pre class="sample-body mono">{{ probeSampleOf(model.providers[index])!.text }}</pre>
+                        <div
+                          v-if="usesResponseTree(model.providers[index])"
+                          class="sample-body sample-tree"
+                        >
+                          <JsonCheckTree
+                            v-if="extractJsonTreeOf(model.providers[index]).length"
+                            :nodes="extractJsonTreeOf(model.providers[index])"
+                            :selected="selectedTreePathsOf(model.providers[index])"
+                            @toggle="(paths, checked) => toggleTreePaths(model.providers[index], paths, checked)"
+                          />
+                          <p v-else class="field-hint">
+                            无法解析为 JSON 树，请确认响应格式，或改用「原始内容」
+                          </p>
+                        </div>
+                        <pre v-else class="sample-body mono">{{ probeSampleOf(model.providers[index])!.text }}</pre>
                       </div>
                       <div v-else class="extract-empty">
                         <p>已恢复保存的提取配置。重新「测试连通」可再次预览原始响应与 output。</p>
@@ -1072,42 +1301,45 @@ function removeDefaultAssert(index: number) {
                             >
                               <a-radio-button value="raw">原始内容</a-radio-button>
                               <a-radio-button value="fields">选择字段拼接</a-radio-button>
+                              <a-radio-button value="ai">AI 取值</a-radio-button>
                             </a-radio-group>
                           </div>
 
                           <div
-                            v-if="extractOf(model.providers[index]).strategy === 'fields'"
-                            class="extract-fields"
+                            v-if="extractOf(model.providers[index]).strategy === 'ai'"
+                            class="extract-ai"
                           >
-                            <span class="extract-label">输出字段</span>
-                            <div class="extract-fields-body">
-                              <div class="field-check-list">
-                                <label
-                                  v-for="field in discoveredFieldsOf(model.providers[index])"
-                                  :key="field"
-                                  class="field-check mono"
-                                >
-                                  <a-checkbox
-                                    :checked="extractOf(model.providers[index]).fields.includes(field)"
-                                    @update:checked="(v: boolean) => toggleExtractField(model.providers[index], field, v)"
-                                  />
-                                  {{ field }}
-                                </label>
-                                <p
-                                  v-if="!discoveredFieldsOf(model.providers[index]).length"
-                                  class="field-hint"
-                                >
-                                  未解析到 JSON 字段，可改用「原始内容」或切换响应格式
-                                </p>
-                              </div>
-                              <a-select
-                                mode="tags"
-                                class="extract-select"
-                                :value="extractOf(model.providers[index]).fields"
-                                placeholder="也可手动输入字段名"
-                                :token-separators="[',', ' ']"
-                                @update:value="(v: string[]) => setExtractFields(model.providers[index], v)"
+                            <div class="extract-ai-row">
+                              <span class="extract-label">提取说明</span>
+                              <a-input
+                                :value="extractOf(model.providers[index]).aiHint || DEFAULT_AI_EXTRACT_HINT"
+                                size="small"
+                                placeholder="只要正文，去除结构冗余"
+                                @update:value="(v: string) => setAiHint(model.providers[index], v)"
                               />
+                            </div>
+                            <div class="extract-ai-row">
+                              <span class="extract-label">帮写模型</span>
+                              <div class="extract-ai-actions">
+                                <a-select
+                                  class="extract-ai-grader"
+                                  size="small"
+                                  :value="aiGraderIdOf(index)"
+                                  :options="graderProviderOptions"
+                                  placeholder="选择模型评测配置"
+                                  allow-clear
+                                  @update:value="(v: string) => setAiGraderId(index, v)"
+                                />
+                                <a-button
+                                  type="primary"
+                                  size="small"
+                                  :loading="aiExtractingIndex === index"
+                                  :disabled="!probeSampleOf(model.providers[index])"
+                                  @click="runAiExtract(index)"
+                                >
+                                  AI 帮写规则
+                                </a-button>
+                              </div>
                             </div>
                           </div>
 
@@ -1307,12 +1539,18 @@ function removeDefaultAssert(index: number) {
                 allow-clear
                 @update:value="(value: string) => onAssertTypeChange(assertItem, value)"
               />
-              <a-input
+              <a-tooltip
                 v-if="showsValue(assertItem)"
-                v-model:value="assertItem.value"
-                class="assert-value"
-                :placeholder="valuePlaceholder(assertItem)"
-              />
+                class="assert-value assert-value-tip"
+                :title="assertValueTooltip(assertItem)"
+                placement="topLeft"
+                overlay-class-name="assert-value-tooltip"
+              >
+                <a-input
+                  v-model:value="assertItem.value"
+                  :placeholder="valuePlaceholder(assertItem)"
+                />
+              </a-tooltip>
               <template v-if="showsRange(assertItem)">
                 <a-input-number
                   v-model:value="assertItem.min"
@@ -1366,8 +1604,11 @@ function removeDefaultAssert(index: number) {
             <p>变量与断言</p>
           </div>
           <div class="head-meta">
+            <a-button class="add-btn" @click="exportTests">
+              <UploadOutlined /> 导出
+            </a-button>
             <a-button class="add-btn" @click="openTestImport">
-              <UploadOutlined /> 导入
+              <DownloadOutlined /> 导入
             </a-button>
             <a-button type="dashed" class="add-btn" @click="addTest">
               <PlusOutlined /> 新建测试用例
@@ -1539,12 +1780,18 @@ function removeDefaultAssert(index: number) {
                   allow-clear
                   @update:value="(value: string) => onAssertTypeChange(assertItem, value)"
                 />
-                <a-input
+                <a-tooltip
                   v-if="showsValue(assertItem)"
-                  v-model:value="assertItem.value"
-                  class="assert-value"
-                  :placeholder="valuePlaceholder(assertItem)"
-                />
+                  class="assert-value assert-value-tip"
+                  :title="assertValueTooltip(assertItem)"
+                  placement="topLeft"
+                  overlay-class-name="assert-value-tooltip"
+                >
+                  <a-input
+                    v-model:value="assertItem.value"
+                    :placeholder="valuePlaceholder(assertItem)"
+                  />
+                </a-tooltip>
                 <template v-if="showsRange(assertItem)">
                   <a-input-number
                     v-model:value="assertItem.min"
@@ -1610,7 +1857,7 @@ function removeDefaultAssert(index: number) {
               填写后上传。断言列仅支持 YAML（如 <code>- type: llm-rubric</code>）；任一条失败则整批不导入。
             </li>
             <li>
-              校验通过后合并进当前测试用例（不清空已有数据）；若当前仅有一条空白用例则直接替换。
+              选择文件后点击「开始导入」，可在二次确认中选择<strong>追加导入</strong>或<strong>覆盖导入</strong>。
             </li>
           </ul>
         </div>
@@ -1637,10 +1884,38 @@ function removeDefaultAssert(index: number) {
           <a-button
             type="primary"
             :disabled="!testImportFileList.length"
-            :loading="testImportSubmitting"
             @click="submitTestImport"
           >
             开始导入
+          </a-button>
+        </template>
+      </a-modal>
+
+      <a-modal
+        v-model:open="testImportModeOpen"
+        title="选择导入方式"
+        :width="420"
+        centered
+        :mask-closable="false"
+        wrap-class-name="test-import-mode-modal-wrap"
+        @cancel="closeTestImportMode"
+      >
+        <p class="import-mode-desc">请选择如何处理当前已有的测试用例：</p>
+        <a-radio-group v-model:value="testImportMode" class="import-mode-radios">
+          <a-radio value="append" class="import-mode-option">
+            <span class="import-mode-title">追加导入</span>
+            <span class="import-mode-hint">拼接到现有用例后；若当前仅有一条空白用例则直接替换</span>
+          </a-radio>
+          <a-radio value="replace" class="import-mode-option">
+            <span class="import-mode-title">覆盖导入</span>
+            <span class="import-mode-hint">用本次导入内容替换全部现有用例</span>
+          </a-radio>
+        </a-radio-group>
+
+        <template #footer>
+          <a-button @click="closeTestImportMode">取消</a-button>
+          <a-button type="primary" :loading="testImportSubmitting" @click="confirmTestImport">
+            确认导入
           </a-button>
         </template>
       </a-modal>
@@ -2257,6 +2532,11 @@ function removeDefaultAssert(index: number) {
   font-weight: 500;
 }
 
+.sample-hint {
+  color: var(--ek-muted);
+  font-weight: 400;
+}
+
 .sample-body,
 .output-body {
   margin: 0;
@@ -2271,6 +2551,13 @@ function removeDefaultAssert(index: number) {
   word-break: break-word;
   max-height: 220px;
   overflow: auto;
+}
+
+.sample-body.sample-tree {
+  white-space: normal;
+  max-height: 420px;
+  background: rgba(15, 118, 110, 0.03);
+  border-color: rgba(15, 118, 110, 0.18);
 }
 
 .output-body {
@@ -2438,6 +2725,34 @@ function removeDefaultAssert(index: number) {
   margin: 0;
 }
 
+.extract-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.extract-ai-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.extract-ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.extract-ai-grader {
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 280px;
+}
+
 .extract-rule {
   margin: 0;
   padding: 0;
@@ -2602,6 +2917,16 @@ function removeDefaultAssert(index: number) {
 .assert-range,
 .assert-grader {
   min-width: 0;
+  width: 100%;
+}
+
+.assert-value-tip {
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+
+.assert-value-tip :deep(.ant-input) {
   width: 100%;
 }
 
@@ -2873,6 +3198,58 @@ function removeDefaultAssert(index: number) {
   color: var(--ek-accent, #0f766e);
 }
 
+.test-import-mode-modal-wrap .ant-modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.test-import-mode-modal-wrap .import-mode-desc {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #4b5565;
+  line-height: 1.5;
+}
+
+.test-import-mode-modal-wrap .import-mode-radios {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.test-import-mode-modal-wrap .import-mode-option {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  margin-inline-end: 0;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.test-import-mode-modal-wrap .import-mode-option.ant-radio-wrapper-checked {
+  border-color: rgba(15, 118, 110, 0.45);
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.test-import-mode-modal-wrap .import-mode-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  line-height: 22px;
+}
+
+.test-import-mode-modal-wrap .import-mode-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 18px;
+  white-space: normal;
+}
+
 .test-import-modal-wrap .import-tips code {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 12px;
@@ -2930,5 +3307,18 @@ function removeDefaultAssert(index: number) {
 .test-detail-drawer .ant-drawer-title {
   font-size: 15px;
   font-weight: 600;
+}
+
+.assert-value-tooltip {
+  max-width: min(520px, 80vw);
+}
+
+.assert-value-tooltip .ant-tooltip-inner {
+  max-width: min(520px, 80vw);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-align: left;
+  line-height: 1.5;
 }
 </style>
