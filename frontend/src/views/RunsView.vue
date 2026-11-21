@@ -12,7 +12,7 @@ const page = ref(1)
 const pageSize = 10
 let timer: number | undefined
 
-type StatusFilter = 'all' | 'succeeded' | 'failed' | 'running' | 'pending'
+type StatusFilter = 'all' | 'succeeded' | 'failed' | 'cancelled' | 'running' | 'pending'
 const draftKeyword = ref('')
 const draftStatus = ref<StatusFilter>('all')
 const keyword = ref('')
@@ -22,6 +22,7 @@ const statusFilterOptions = [
   { label: '全部结果', value: 'all' },
   { label: '成功', value: 'succeeded' },
   { label: '失败', value: 'failed' },
+  { label: '已暂停', value: 'cancelled' },
   { label: '运行中', value: 'running' },
   { label: '等待中', value: 'pending' },
 ]
@@ -39,7 +40,7 @@ const columns = [
   { title: '任务名称', dataIndex: 'config_name', key: 'config_name', ellipsis: true },
   { title: '运行结果', key: 'status', width: 110 },
   { title: '用例', key: 'total_count', width: 80 },
-  { title: '通过 / 失败 / 错误', key: 'counts', width: 160 },
+  { title: '通过 / 失败 / 未评 / 错误', key: 'counts', width: 200 },
   { title: '通过率', key: 'pass_rate', width: 90 },
   { title: '创建时间', key: 'created_at', width: 170 },
   { title: '操作', key: 'actions', width: 108 },
@@ -199,7 +200,19 @@ onUnmounted(() => {
           </template>
           <template v-else-if="column.key === 'counts'">
             <span v-if="record.total_count" class="mono cell">
-              {{ record.pass_count }} / {{ record.fail_count }} / {{ record.error_count }}
+              {{ record.pass_count }} /
+              {{ record.fail_count }} /
+              {{
+                Math.max(
+                  0,
+                  (record.total_count || 0) -
+                    (record.pass_count || 0) -
+                    (record.fail_count || 0) -
+                    (record.error_count || 0),
+                )
+              }}
+              /
+              {{ record.error_count }}
             </span>
             <span v-else class="muted">—</span>
           </template>

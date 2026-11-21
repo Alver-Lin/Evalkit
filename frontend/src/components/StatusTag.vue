@@ -8,6 +8,7 @@ const labelMap: Record<EvalStatus, string> = {
   running: '运行中',
   succeeded: '成功',
   failed: '失败',
+  cancelled: '已暂停',
 }
 
 const dotMap: Record<EvalStatus, string> = {
@@ -15,6 +16,7 @@ const dotMap: Record<EvalStatus, string> = {
   running: 'is-run',
   succeeded: 'is-ok',
   failed: 'is-fail',
+  cancelled: 'is-warn',
 }
 </script>
 

@@ -352,6 +352,55 @@ function csvEscapeCell(value: string) {
   return value
 }
 
+function collectExportVarNames(tests: VisualTest[], preferredVarNames: string[] = []) {
+  const varNames = new Set<string>(preferredVarNames)
+  for (const test of tests) {
+    for (const key of Object.keys(parseVarsText(test.varsText))) {
+      if (key) varNames.add(key)
+    }
+  }
+  if (!preferredVarNames.length) return Array.from(varNames)
+  return [
+    ...preferredVarNames,
+    ...Array.from(varNames).filter((name) => !preferredVarNames.includes(name)),
+  ]
+}
+
+function displayWidth(text: string) {
+  let width = 0
+  for (const ch of String(text || '')) {
+    width += /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(ch) ? 2 : 1
+  }
+  return width
+}
+
+function maxDisplayWidth(texts: string[]) {
+  let max = 0
+  for (const text of texts) {
+    for (const line of String(text || '').split(/\r?\n/)) {
+      max = Math.max(max, displayWidth(line))
+    }
+  }
+  return max
+}
+
+/** Excel SpreadsheetML column width (approx. character units). */
+function excelColWidth(texts: string[], min: number, max: number, pad = 3) {
+  return Math.min(max, Math.max(min, maxDisplayWidth(texts) + pad))
+}
+
+function xmlEscape(value: string) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function isPlainNumber(value: string) {
+  return /^-?\d+(\.\d+)?$/.test(value.trim())
+}
+
 /**
  * Build import-compatible CSV for current visual tests.
  * Columns: description + var names + assert (YAML).
@@ -361,19 +410,7 @@ export function buildExportedTestsCsv(
   preferredVarNames: string[] = [],
   graders: GraderMeta[] = [],
 ): string {
-  const varNames = new Set<string>(preferredVarNames)
-  for (const test of tests) {
-    for (const key of Object.keys(parseVarsText(test.varsText))) {
-      if (key) varNames.add(key)
-    }
-  }
-  const vars = preferredVarNames.length
-    ? [
-        ...preferredVarNames,
-        ...Array.from(varNames).filter((name) => !preferredVarNames.includes(name)),
-      ]
-    : Array.from(varNames)
-
+  const vars = collectExportVarNames(tests, preferredVarNames)
   const headers = ['description', ...vars, 'assert']
   const lines = [headers.map(csvEscapeCell).join(',')]
   for (const test of tests) {
@@ -386,4 +423,120 @@ export function buildExportedTestsCsv(
     lines.push(cells.join(','))
   }
   return `\uFEFF${lines.join('\n')}\n`
+}
+
+/**
+ * Build Excel-friendly SpreadsheetML (.xls) with tuned column widths.
+ * Same columns as CSV so users can Save As CSV for re-import.
+ */
+export function buildExportedTestsExcelXml(
+  tests: VisualTest[],
+  preferredVarNames: string[] = [],
+  graders: GraderMeta[] = [],
+): string {
+  const vars = collectExportVarNames(tests, preferredVarNames)
+  const headers = ['description', ...vars, 'assert']
+  const rows = tests.map((test) => {
+    const rowVars = parseVarsText(test.varsText)
+    return [
+      test.description || '',
+      ...vars.map((name) => rowVars[name] ?? ''),
+      assertsToYaml(test.asserts || [], graders),
+    ]
+  })
+
+  const widths = headers.map((header, colIdx) => {
+    const values = [header, ...rows.map((row) => row[colIdx] || '')]
+    if (header === 'description') return excelColWidth(values, 36, 56, 4)
+    if (header === 'assert') return excelColWidth(values, 48, 72, 4)
+    if (/length|count|id$/i.test(header) || header.toLowerCase().includes('code')) {
+      return excelColWidth(values, 12, 22, 3)
+    }
+    return excelColWidth(values, 14, 32, 3)
+  })
+
+  const headerCells = headers
+    .map((header) => {
+      const style =
+        header === 'description' ? 'HeaderCenter' : header === 'assert' ? 'HeaderWrap' : 'Header'
+      return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${xmlEscape(header)}</Data></Cell>`
+    })
+    .join('')
+
+  const bodyRows = rows
+    .map((cells) => {
+      const xmlCells = cells
+        .map((value, idx) => {
+          const header = headers[idx]
+          const text = value ?? ''
+          if (header !== 'description' && header !== 'assert' && text && isPlainNumber(text)) {
+            return `<Cell ss:StyleID="Body"><Data ss:Type="Number">${xmlEscape(text.trim())}</Data></Cell>`
+          }
+          if (header === 'description') {
+            return `<Cell ss:StyleID="Desc"><Data ss:Type="String">${xmlEscape(text)}</Data></Cell>`
+          }
+          const style = header === 'assert' || text.includes('\n') ? 'Wrap' : 'Body'
+          return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${xmlEscape(text)}</Data></Cell>`
+        })
+        .join('')
+      return `<Row ss:AutoFitHeight="1">${xmlCells}</Row>`
+    })
+    .join('\n')
+
+  const columnXml = widths
+    .map((width) => `<Column ss:AutoFitWidth="0" ss:Width="${width * 6}" />`)
+    .join('\n')
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Header">
+   <Font ss:Bold="1" ss:Size="11" ss:Color="#1F2937"/>
+   <Interior ss:Color="#F3F5F8" ss:Pattern="Solid"/>
+   <Alignment ss:Vertical="Center" ss:WrapText="1"/>
+  </Style>
+  <Style ss:ID="HeaderCenter">
+   <Font ss:Bold="1" ss:Size="11" ss:Color="#1F2937"/>
+   <Interior ss:Color="#F3F5F8" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+  </Style>
+  <Style ss:ID="HeaderWrap">
+   <Font ss:Bold="1" ss:Size="11" ss:Color="#1F2937"/>
+   <Interior ss:Color="#F3F5F8" ss:Pattern="Solid"/>
+   <Alignment ss:Vertical="Center" ss:WrapText="1"/>
+  </Style>
+  <Style ss:ID="Body">
+   <Font ss:Size="11" ss:Color="#111827"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="Wrap">
+   <Font ss:Size="11" ss:Color="#111827"/>
+   <Alignment ss:Vertical="Top" ss:WrapText="1"/>
+  </Style>
+  <Style ss:ID="Desc">
+   <Font ss:Size="11" ss:Color="#111827"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="tests">
+  <Table ss:DefaultRowHeight="20">
+${columnXml}
+   <Row ss:Height="24">${headerCells}</Row>
+${bodyRows}
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>1</SplitHorizontal>
+   <TopRowBottomPane>1</TopRowBottomPane>
+   <ActivePane>2</ActivePane>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>
+`
 }

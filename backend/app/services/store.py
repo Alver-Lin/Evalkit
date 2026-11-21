@@ -124,16 +124,21 @@ class ConfigStore:
 
 
 def _normalize_run_summary(summary: EvalRunSummary) -> EvalRunSummary:
-    """Fix legacy runs marked succeeded despite failed/errored cases."""
-    if summary.status == EvalStatus.succeeded and (summary.fail_count or summary.error_count):
-        summary.status = EvalStatus.failed
-        if not summary.error:
-            parts: list[str] = []
-            if summary.fail_count:
-                parts.append(f"{summary.fail_count} 未通过")
-            if summary.error_count:
-                parts.append(f"{summary.error_count} 错误")
-            summary.error = "，".join(parts) or "测评未全部通过"
+    """Legacy: case fails used to mark the whole run failed. Treat full batches as succeeded."""
+    total = int(summary.total_count or 0)
+    completed = int(summary.completed_count or 0)
+    if (
+        summary.status == EvalStatus.failed
+        and total > 0
+        and completed >= total
+    ):
+        err = (summary.error or "").strip()
+        # Keep real infra failures; rewrite "126 未通过" style outcomes.
+        if not err or "未通过" in err or err == "测评未全部通过" or (
+            "错误" in err and "未完整执行" not in err and "promptfoo" not in err.lower()
+        ):
+            summary.status = EvalStatus.succeeded
+            summary.error = None
     return summary
 
 

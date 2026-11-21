@@ -47,6 +47,8 @@ export const api = {
     description?: string
   }) => http.post<EvalRunSummary>('/runs', payload).then((r) => r.data),
   deleteRun: (id: string) => http.delete(`/runs/${id}`).then((r) => r.data),
+  cancelRun: (id: string) => http.post<EvalRunSummary>(`/runs/${id}/cancel`).then((r) => r.data),
+  resumeRun: (id: string) => http.post<EvalRunSummary>(`/runs/${id}/resume`).then((r) => r.data),
   getReport: (id: string) => http.get<ReportView>(`/runs/${id}/report`).then((r) => r.data),
   probeProvider: (payload: ProviderProbeRequest) =>
     http.post<ProviderProbeResponse>('/providers/probe', payload).then((r) => r.data),

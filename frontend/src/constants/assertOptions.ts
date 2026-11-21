@@ -46,7 +46,7 @@ export const assertCategories: Array<{
       },
       {
         value: 'llm-rubric',
-        label: '模型评分标准',
+        label: '模型评分',
         hasValue: true,
         hasThreshold: true,
         defaultThreshold: 0.7,

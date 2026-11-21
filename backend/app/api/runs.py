@@ -6,8 +6,8 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Res
 from app.models.schemas import EvalRunDetail, EvalRunRequest, EvalRunSummary, EvalStatus
 from app.services.html_report import build_evalkit_html_report
 from app.services.promptfoo_runner import promptfoo_runner
-from app.services.report_builder import build_report_view, results_to_csv
-from app.services.run_progress import apply_progress_to_summary
+from app.services.report_builder import build_run_report_view, results_to_csv
+from app.services.run_progress import apply_progress_to_summary, progress_segment_paths
 from app.services.store import config_store, run_store
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -51,6 +51,17 @@ def delete_run(run_id: str) -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.post("/{run_id}/cancel", response_model=EvalRunSummary)
+def cancel_run(run_id: str) -> EvalRunSummary:
+    try:
+        run_store.get(run_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not promptfoo_runner.cancel(run_id):
+        raise HTTPException(status_code=409, detail="当前测评未在运行，无法暂停")
+    return run_store.get(run_id)
+
+
 @router.get("/{run_id}", response_model=EvalRunDetail)
 def get_run(run_id: str) -> EvalRunDetail:
     try:
@@ -73,7 +84,8 @@ def get_run(run_id: str) -> EvalRunDetail:
         stderr = (run_dir / "stderr.log").read_text(encoding="utf-8")
 
     results = run_store.load_results(run_id)
-    has_results = results is not None or run_store.results_path(run_id).exists()
+    has_progress = any(p.exists() and p.stat().st_size > 0 for p in progress_segment_paths(run_dir))
+    has_results = results is not None or run_store.results_path(run_id).exists() or has_progress
     return EvalRunDetail(
         **summary.model_dump(),
         results=results,
@@ -85,14 +97,34 @@ def get_run(run_id: str) -> EvalRunDetail:
     )
 
 
+@router.post("/{run_id}/resume", response_model=EvalRunSummary)
+async def resume_run(run_id: str) -> EvalRunSummary:
+    try:
+        summary = run_store.get(run_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if summary.status != EvalStatus.cancelled:
+        raise HTTPException(status_code=409, detail="仅已暂停的测评可以继续")
+    try:
+        # Must run inside an async route so asyncio.create_task has a loop
+        # (same pattern as create_run).
+        promptfoo_runner.resume(run_id=run_id, max_concurrency=2, cache=False)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return run_store.get(run_id)
+
+
 @router.get("/{run_id}/report")
 def get_report_view(run_id: str) -> dict:
     try:
         run_store.get(run_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    results = run_store.load_results(run_id)
-    return build_report_view(results)
+    run_dir = run_store.run_dir(run_id)
+    view = build_run_report_view(run_dir)
+    if not view.get("table"):
+        raise HTTPException(status_code=404, detail="尚无结果")
+    return view
 
 
 @router.get("/{run_id}/report.json")
@@ -109,10 +141,10 @@ def download_html(run_id: str) -> Response:
         summary = run_store.get(run_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    results = run_store.load_results(run_id)
-    if results is None:
+    run_dir = run_store.run_dir(run_id)
+    view = build_run_report_view(run_dir)
+    if not view.get("table"):
         raise HTTPException(status_code=404, detail="HTML report not found（尚无结果）")
-    view = build_report_view(results)
     html_text = build_evalkit_html_report(summary, view)
     # Persist for offline reuse; always regenerate so style stays current.
     run_store.html_path(run_id).write_text(html_text, encoding="utf-8")
@@ -134,8 +166,10 @@ def download_csv(run_id: str) -> Response:
         run_store.get(run_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    results = run_store.load_results(run_id)
-    csv_text = results_to_csv(results)
+    run_dir = run_store.run_dir(run_id)
+    view = build_run_report_view(run_dir)
+    # results_to_csv expects raw results; reuse table via a shim dict.
+    csv_text = results_to_csv({"results": {"results": view.get("table") or []}})
     return PlainTextResponse(
         csv_text,
         media_type="text/csv",

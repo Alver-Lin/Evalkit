@@ -1,4 +1,4 @@
-export type EvalStatus = 'pending' | 'running' | 'succeeded' | 'failed'
+export type EvalStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled'
 
 export interface ConfigMeta {
   id: string
@@ -67,6 +67,8 @@ export interface ReportRow {
   /** Model thinking / chain-of-thought, split from output when present. */
   thinking?: string | null
   success: boolean
+  /** True when the case was not executed yet (in-flight / paused mid-batch). */
+  pending?: boolean
   score?: number | null
   latencyMs?: number | null
   cost?: number | null
@@ -80,6 +82,7 @@ export interface ReportView {
     pass_count: number
     fail_count: number
     error_count: number
+    pending_count?: number
     total_count: number
     pass_rate: number
   }

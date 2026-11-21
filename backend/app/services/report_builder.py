@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import re
+from pathlib import Path
 from typing import Any
 
 
@@ -81,7 +83,10 @@ def build_report_view(results: dict[str, Any] | None) -> dict[str, Any]:
     summary = summarize_results(results)
     if not results:
         return {
-            "summary": summary,
+            "summary": {
+                **summary,
+                "pending_count": 0,
+            },
             "prompts": [],
             "providers": [],
             "table": [],
@@ -96,49 +101,9 @@ def build_report_view(results: dict[str, Any] | None) -> dict[str, Any]:
 
     table = []
     for idx, row in enumerate(rows):
-        grading = row.get("gradingResult") or {}
-        provider = _provider_label(row)
-        prompt = _prompt_label(row, prompts)
-        raw_output = ""
-        response = row.get("response")
-        if isinstance(response, dict):
-            raw_output = response.get("output") or response.get("text") or ""
-        elif isinstance(response, str):
-            raw_output = response
-        else:
-            raw_output = row.get("output") or ""
-        if not isinstance(raw_output, str):
-            raw_output = str(raw_output)
-        output, thinking = split_thinking_output(raw_output)
+        table.append(_row_to_table_item(row, idx, prompts))
 
-        success = bool(row.get("success") or row.get("pass"))
-        has_grade = row.get("gradingResult") is not None or row.get("response") is not None
-        test_case = row.get("testCase") if isinstance(row.get("testCase"), dict) else {}
-        assertions = _assertion_details(grading)
-        prompt_idx = row.get("promptIdx")
-        test_idx = row.get("testIdx")
-        table.append(
-            {
-                "id": idx,
-                "testIdx": test_idx if isinstance(test_idx, int) else idx,
-                "promptIdx": prompt_idx if isinstance(prompt_idx, int) else 0,
-                "description": test_case.get("description") or "",
-                "provider": provider,
-                "prompt": prompt,
-                "vars": row.get("vars") or test_case.get("vars") or {},
-                "output": output,
-                "thinking": thinking,
-                "success": success,
-                "score": row.get("score"),
-                "latencyMs": row.get("latencyMs") or row.get("latency"),
-                "cost": row.get("cost"),
-                "error": None if (success or has_grade) else row.get("error"),
-                "reason": (grading.get("reason") if isinstance(grading, dict) else None)
-                or (None if success else row.get("error")),
-                "assertions": assertions,
-            }
-        )
-
+    summary = _summary_from_table(table)
     return {
         "summary": summary,
         "prompts": prompts,
@@ -149,6 +114,178 @@ def build_report_view(results: dict[str, Any] | None) -> dict[str, Any]:
         "timestamp": results.get("timestamp") or results.get("createdAt"),
         "version": results.get("version"),
         "raw": results,
+    }
+
+
+def build_run_report_view(run_dir: Path, results: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build report for a run dir, falling back to progress JSONL and filling 未评 cells."""
+    from app.services.run_progress import (  # local import to avoid cycle
+        load_config_matrix,
+        progress_rows_as_results,
+    )
+
+    if results is None:
+        results_path = run_dir / "results.json"
+        if results_path.exists():
+            try:
+                results = json.loads(results_path.read_text(encoding="utf-8"))
+            except Exception:
+                results = None
+        if results is None:
+            results = progress_rows_as_results(run_dir)
+
+    view = build_report_view(results)
+    config_yaml = run_dir / "promptfooconfig.full.yaml"
+    if not config_yaml.exists():
+        config_yaml = run_dir / "promptfooconfig.yaml"
+    matrix = load_config_matrix(config_yaml)
+    if not matrix:
+        return view
+    return _expand_table_with_pending(view, matrix)
+
+
+def _row_to_table_item(row: dict[str, Any], idx: int, prompts: list[Any]) -> dict[str, Any]:
+    grading = row.get("gradingResult") or {}
+    provider = _provider_label(row)
+    prompt = _prompt_label(row, prompts)
+    raw_output = ""
+    response = row.get("response")
+    if isinstance(response, dict):
+        raw_output = response.get("output") or response.get("text") or ""
+    elif isinstance(response, str):
+        raw_output = response
+    else:
+        raw_output = row.get("output") or ""
+    if not isinstance(raw_output, str):
+        raw_output = str(raw_output)
+    output, thinking = split_thinking_output(raw_output)
+
+    pending = bool(row.get("pending"))
+    success = bool(row.get("success") or row.get("pass"))
+    has_grade = row.get("gradingResult") is not None or row.get("response") is not None
+    test_case = row.get("testCase") if isinstance(row.get("testCase"), dict) else {}
+    assertions = _assertion_details(grading)
+    prompt_idx = row.get("promptIdx")
+    test_idx = row.get("testIdx")
+    return {
+        "id": idx,
+        "testIdx": test_idx if isinstance(test_idx, int) else idx,
+        "promptIdx": prompt_idx if isinstance(prompt_idx, int) else 0,
+        "description": test_case.get("description") or row.get("description") or "",
+        "provider": provider,
+        "prompt": prompt,
+        "vars": row.get("vars") or test_case.get("vars") or {},
+        "output": output,
+        "thinking": thinking,
+        "success": False if pending else success,
+        "pending": pending,
+        "score": None if pending else row.get("score"),
+        "latencyMs": None if pending else (row.get("latencyMs") or row.get("latency")),
+        "cost": None if pending else row.get("cost"),
+        "error": "未评" if pending else (None if (success or has_grade) else row.get("error")),
+        "reason": None
+        if pending
+        else (
+            (grading.get("reason") if isinstance(grading, dict) else None)
+            or (None if success else row.get("error"))
+        ),
+        "assertions": [] if pending else assertions,
+    }
+
+
+def _summary_from_table(table: list[dict[str, Any]]) -> dict[str, Any]:
+    pass_count = 0
+    fail_count = 0
+    error_count = 0
+    pending_count = 0
+    for row in table:
+        if row.get("pending"):
+            pending_count += 1
+        elif row.get("success"):
+            pass_count += 1
+        elif row.get("error"):
+            error_count += 1
+        else:
+            fail_count += 1
+    graded = pass_count + fail_count
+    return {
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "error_count": error_count,
+        "pending_count": pending_count,
+        "total_count": len(table),
+        "pass_rate": round((pass_count / graded) * 100, 2) if graded else 0.0,
+    }
+
+
+def _prompt_text(item: Any, index: int) -> str:
+    if isinstance(item, dict):
+        return str(item.get("raw") or item.get("display") or item.get("label") or f"提示词 {index + 1}")
+    text = str(item or "").strip()
+    return text or f"提示词 {index + 1}"
+
+
+def _expand_table_with_pending(view: dict[str, Any], matrix: dict[str, Any]) -> dict[str, Any]:
+    prompts = matrix["prompts"]
+    providers = matrix["providers"]
+    tests = matrix["tests"]
+    existing = {
+        (int(row.get("promptIdx") or 0), int(row.get("testIdx") or 0), str(row.get("provider") or "")): row
+        for row in view.get("table") or []
+    }
+    table: list[dict[str, Any]] = []
+    next_id = 0
+    for ti, test in enumerate(tests):
+        test_obj = test if isinstance(test, dict) else {}
+        description = ""
+        vars_obj: dict[str, Any] = {}
+        if isinstance(test_obj, dict):
+            description = str(test_obj.get("description") or "")
+            raw_vars = test_obj.get("vars")
+            if isinstance(raw_vars, dict):
+                vars_obj = raw_vars
+        for pi, prompt in enumerate(prompts):
+            prompt_text = _prompt_text(prompt, pi)
+            for provider in providers:
+                from app.services.run_progress import provider_key
+
+                prov_label = provider_key(provider)
+                key = (pi, ti, prov_label)
+                row = existing.get(key)
+                if row:
+                    row = {**row, "id": next_id, "description": row.get("description") or description}
+                    table.append(row)
+                else:
+                    table.append(
+                        {
+                            "id": next_id,
+                            "testIdx": ti,
+                            "promptIdx": pi,
+                            "description": description,
+                            "provider": prov_label,
+                            "prompt": prompt_text,
+                            "vars": vars_obj,
+                            "output": "",
+                            "thinking": "",
+                            "success": False,
+                            "pending": True,
+                            "score": None,
+                            "latencyMs": None,
+                            "cost": None,
+                            "error": "未评",
+                            "reason": None,
+                            "assertions": [],
+                        }
+                    )
+                next_id += 1
+
+    summary = _summary_from_table(table)
+    return {
+        **view,
+        "summary": summary,
+        "table": table,
+        "by_provider": _group_stats(table, "provider"),
+        "by_prompt": _group_stats(table, "prompt"),
     }
 
 
@@ -282,10 +419,20 @@ def _group_stats(table: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
         name = str(row.get(key) or "unknown")
         bucket = buckets.setdefault(
             name,
-            {"name": name, "pass": 0, "fail": 0, "error": 0, "total": 0, "pass_rate": 0.0},
+            {
+                "name": name,
+                "pass": 0,
+                "fail": 0,
+                "error": 0,
+                "pending": 0,
+                "total": 0,
+                "pass_rate": 0.0,
+            },
         )
         bucket["total"] += 1
-        if row.get("success"):
+        if row.get("pending"):
+            bucket["pending"] += 1
+        elif row.get("success"):
             bucket["pass"] += 1
         elif row.get("error"):
             bucket["error"] += 1

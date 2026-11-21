@@ -62,7 +62,7 @@ import {
   type JsonPathNode,
 } from '@/utils/jsonPathSelect'
 import {
-  buildExportedTestsCsv,
+  buildExportedTestsExcelXml,
   draftsToVisualTests,
   parseImportedTests,
   sampleAssertYaml,
@@ -74,10 +74,11 @@ const props = defineProps<{
   section: 'prompts' | 'providers' | 'tests'
   /** Used to persist probe capsules across reload / remount. */
   configId?: string
+  /** Task / config name for export filename. */
+  taskName?: string
 }>()
 
 const varSyntax = '{{variable}}'
-const promptVarSyntax = '{{prompt}}'
 const hasHttpProvider = computed(() =>
   model.value.providers.some((provider) => inferProviderKind(provider) === 'http'),
 )
@@ -663,18 +664,34 @@ function openTestImport() {
   testImportOpen.value = true
 }
 
+function sanitizeFilePart(value: string) {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, ' ')
+    .replace(/\.+$/g, '')
+    .slice(0, 80)
+}
+
 function exportTests() {
   if (!model.value.tests.length) {
     message.warning('暂无测试用例可导出')
     return
   }
-  const content = buildExportedTestsCsv(model.value.tests, promptVarNames.value, graders.value)
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const content = buildExportedTestsExcelXml(
+    model.value.tests,
+    promptVarNames.value,
+    graders.value,
+  )
+  const blob = new Blob([content], {
+    type: 'application/vnd.ms-excel;charset=utf-8',
+  })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
+  const task = sanitizeFilePart(props.taskName || '') || '未命名任务'
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
   link.href = url
-  link.download = `evalkit-tests-${stamp}.csv`
+  link.download = `${task}-测试用例-${stamp}.xls`
   link.click()
   URL.revokeObjectURL(url)
   message.success(`已导出 ${model.value.tests.length} 条测试用例`)
@@ -914,6 +931,10 @@ function assertRowClass(assert: VisualAssert) {
   return 'assert-row assert-row-none'
 }
 
+function assertHasMetrics(assert: VisualAssert) {
+  return showsValue(assert) || showsRange(assert) || showsThreshold(assert) || showsGrader(assert)
+}
+
 function addAssert(testIndex: number) {
   model.value.tests[testIndex].asserts.push(createVisualAssert('contains'))
 }
@@ -939,9 +960,8 @@ function removeDefaultAssert(index: number) {
         <div class="head-text">
           <h3>提示词</h3>
           <p>
-            自定义 HTTP 时，此处填写请求 Body（JSON）；新建 OpenAI 兼容时，此处填写提示词。用
-            <code>{{ varSyntax }}</code> 作变量，供应商 Body 固定为
-            <code>{{ promptVarSyntax }}</code>
+            使用 <code>{{ varSyntax }}</code> 这种格式作为变量。自定义 HTTP
+            时，此处填写请求 Body（JSON）；新建 OpenAI 兼容时，此处填写提示词。
           </p>
         </div>
         <div class="head-meta">
@@ -984,6 +1004,7 @@ function removeDefaultAssert(index: number) {
             :page-size="pageSize"
             size="small"
             show-less-items
+            :show-size-changer="false"
             :show-total="(total: number) => `共 ${total} 条`"
           />
         </div>
@@ -1173,6 +1194,7 @@ function removeDefaultAssert(index: number) {
                   </div>
                   <div class="extract-head-actions">
                     <a-radio-group
+                      class="extract-seg"
                       size="small"
                       :value="extractOf(model.providers[index]).mode"
                       @update:value="(v: string) => setExtractMode(model.providers[index], v as 'visual' | 'code')"
@@ -1309,30 +1331,30 @@ function removeDefaultAssert(index: number) {
                             v-if="extractOf(model.providers[index]).strategy === 'ai'"
                             class="extract-ai"
                           >
-                            <div class="extract-ai-row">
-                              <span class="extract-label">提取说明</span>
-                              <a-input
+                            <span class="extract-label">提取说明</span>
+                            <div class="extract-ai-composer">
+                              <a-textarea
+                                class="extract-ai-hint"
                                 :value="extractOf(model.providers[index]).aiHint || DEFAULT_AI_EXTRACT_HINT"
-                                size="small"
+                                :auto-size="{ minRows: 3, maxRows: 5 }"
                                 placeholder="只要正文，去除结构冗余"
+                                :bordered="false"
                                 @update:value="(v: string) => setAiHint(model.providers[index], v)"
                               />
-                            </div>
-                            <div class="extract-ai-row">
-                              <span class="extract-label">帮写模型</span>
-                              <div class="extract-ai-actions">
+                              <div class="extract-ai-toolbar">
                                 <a-select
                                   class="extract-ai-grader"
                                   size="small"
                                   :value="aiGraderIdOf(index)"
                                   :options="graderProviderOptions"
-                                  placeholder="选择模型评测配置"
+                                  placeholder="帮写模型"
                                   allow-clear
                                   @update:value="(v: string) => setAiGraderId(index, v)"
                                 />
                                 <a-button
                                   type="primary"
                                   size="small"
+                                  class="extract-ai-submit"
                                   :loading="aiExtractingIndex === index"
                                   :disabled="!probeSampleOf(model.providers[index])"
                                   @click="runAiExtract(index)"
@@ -1343,7 +1365,10 @@ function removeDefaultAssert(index: number) {
                             </div>
                           </div>
 
-                          <div class="extract-row">
+                          <div
+                            v-if="extractOf(model.providers[index]).strategy !== 'ai'"
+                            class="extract-row"
+                          >
                             <span class="extract-label">数据清洗</span>
                             <div class="extract-clean-list">
                               <button
@@ -1470,6 +1495,7 @@ function removeDefaultAssert(index: number) {
             :page-size="pageSize"
             size="small"
             show-less-items
+            :show-size-changer="false"
             :show-total="(total: number) => `共 ${total} 条`"
           />
         </div>
@@ -1533,7 +1559,6 @@ function removeDefaultAssert(index: number) {
                 :tree-data="assertTreeData"
                 show-search
                 tree-node-filter-prop="title"
-                tree-default-expand-all
                 :dropdown-style="{ maxHeight: '320px', overflow: 'auto' }"
                 placeholder="选择断言类型"
                 allow-clear
@@ -1691,6 +1716,7 @@ function removeDefaultAssert(index: number) {
               :page-size="pageSize"
               size="small"
               show-less-items
+              :show-size-changer="false"
               :show-total="(total: number) => `共 ${total} 条`"
             />
           </div>
@@ -1707,7 +1733,10 @@ function removeDefaultAssert(index: number) {
       >
         <div v-if="detailTest" class="detail-form">
           <section class="detail-block">
-            <label class="detail-label" for="detail-description">测试项</label>
+            <div class="detail-label-row">
+              <label class="detail-label" for="detail-description">测试项</label>
+            </div>
+            <p class="detail-hint">用例名称，用于结果矩阵与报告中识别本条测试。</p>
             <a-textarea
               id="detail-description"
               v-model:value="detailTest.description"
@@ -1719,19 +1748,41 @@ function removeDefaultAssert(index: number) {
           </section>
 
           <section class="detail-block">
-            <div class="detail-label">变量</div>
+            <div class="detail-label-row">
+              <div class="detail-label">变量</div>
+              <span v-if="promptVarNames.length" class="detail-count mono">
+                {{ promptVarNames.length }} 项
+              </span>
+            </div>
+            <p class="detail-hint">
+              来自提示词中的 <code>{{ varSyntax }}</code>，在此为当前用例填入取值。
+            </p>
             <div v-if="!promptVarNames.length" class="detail-empty">
               提示词中尚未定义变量，请先使用 {{ varSyntax }}
             </div>
-            <div v-else class="detail-var-list">
-              <div v-for="name in promptVarNames" :key="name" class="detail-var-row">
-                <code class="detail-var-key" :title="name">{{ name }}</code>
-                <a-input
-                  :value="getVarValue(detailIndex, name)"
-                  :placeholder="`输入 ${name}`"
-                  allow-clear
-                  @update:value="(value: string) => setVarValue(detailIndex, name, value)"
-                />
+            <div v-else class="detail-var-table" role="table" aria-label="变量取值">
+              <div class="detail-var-head" role="row">
+                <div class="detail-var-cell key" role="columnheader">变量名</div>
+                <div class="detail-var-cell value" role="columnheader">取值</div>
+              </div>
+              <div
+                v-for="name in promptVarNames"
+                :key="name"
+                class="detail-var-row"
+                role="row"
+              >
+                <div class="detail-var-cell key" role="cell">
+                  <span class="detail-var-key mono" :title="name">{{ name }}</span>
+                </div>
+                <div class="detail-var-cell value" role="cell">
+                  <a-input
+                    size="small"
+                    :value="getVarValue(detailIndex, name)"
+                    :placeholder="`输入 ${name}`"
+                    allow-clear
+                    @update:value="(value: string) => setVarValue(detailIndex, name, value)"
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -1740,7 +1791,6 @@ function removeDefaultAssert(index: number) {
             <div class="detail-label-row">
               <div class="detail-label">断言</div>
               <a-button
-                v-if="detailTest.asserts.length"
                 type="link"
                 size="small"
                 class="detail-add-link"
@@ -1749,90 +1799,116 @@ function removeDefaultAssert(index: number) {
                 <PlusOutlined /> 添加
               </a-button>
             </div>
+            <p class="detail-hint">仅作用于当前用例；留空则只走全局断言。</p>
             <div v-if="!detailTest.asserts.length" class="detail-empty is-action">
               <span>暂无断言</span>
               <a-button type="link" size="small" class="detail-add-link" @click="addAssert(detailIndex)">
                 <PlusOutlined /> 添加断言
               </a-button>
             </div>
-            <div v-else class="assert-list">
+            <div v-else class="detail-assert-table" role="table" aria-label="断言配置">
+              <div class="detail-assert-head" role="row">
+                <div class="detail-assert-cell polarity" role="columnheader">是/否</div>
+                <div class="detail-assert-cell type" role="columnheader">断言项</div>
+                <div class="detail-assert-cell metrics" role="columnheader">断言指标</div>
+                <div class="detail-assert-cell action" role="columnheader" aria-hidden="true" />
+              </div>
               <div
                 v-for="(assertItem, assertIndex) in detailTest.asserts"
                 :key="`detail-assert-${assertIndex}`"
-                :class="assertRowClass(assertItem)"
+                class="detail-assert-row"
+                role="row"
               >
-                <a-select
-                  :value="polarityOf(assertItem)"
-                  class="assert-polarity"
-                  :options="polarityOptions"
-                  :dropdown-match-select-width="false"
-                  @update:value="(value: string) => setPolarity(assertItem, value)"
-                />
-                <a-tree-select
-                  :value="assertItem.type"
-                  class="assert-type"
-                  :tree-data="assertTreeData"
-                  show-search
-                  tree-node-filter-prop="title"
-                  tree-default-expand-all
-                  :dropdown-style="{ maxHeight: '320px', overflow: 'auto' }"
-                  placeholder="选择断言类型"
-                  allow-clear
-                  @update:value="(value: string) => onAssertTypeChange(assertItem, value)"
-                />
-                <a-tooltip
-                  v-if="showsValue(assertItem)"
-                  class="assert-value assert-value-tip"
-                  :title="assertValueTooltip(assertItem)"
-                  placement="topLeft"
-                  overlay-class-name="assert-value-tooltip"
-                >
-                  <a-input
-                    v-model:value="assertItem.value"
-                    :placeholder="valuePlaceholder(assertItem)"
+                <div class="detail-assert-cell polarity" role="cell">
+                  <a-select
+                    size="small"
+                    :value="polarityOf(assertItem)"
+                    class="assert-polarity"
+                    :options="polarityOptions"
+                    :dropdown-match-select-width="false"
+                    @update:value="(value: string) => setPolarity(assertItem, value)"
                   />
-                </a-tooltip>
-                <template v-if="showsRange(assertItem)">
-                  <a-input-number
-                    v-model:value="assertItem.min"
-                    class="assert-range"
-                    placeholder="最小"
-                    :min="0"
-                    :controls="false"
+                </div>
+                <div class="detail-assert-cell type" role="cell">
+                  <a-tree-select
+                    size="small"
+                    :value="assertItem.type"
+                    class="assert-type"
+                    :tree-data="assertTreeData"
+                    show-search
+                    tree-node-filter-prop="title"
+                    :dropdown-style="{ maxHeight: '320px', overflow: 'auto' }"
+                    placeholder="选择断言类型"
+                    allow-clear
+                    @update:value="(value: string) => onAssertTypeChange(assertItem, value)"
                   />
-                  <a-input-number
-                    v-model:value="assertItem.max"
-                    class="assert-range"
-                    placeholder="最大"
-                    :min="0"
-                    :controls="false"
-                  />
-                </template>
-                <a-input-number
-                  v-if="showsThreshold(assertItem)"
-                  v-model:value="assertItem.threshold"
-                  class="assert-threshold"
-                  :placeholder="thresholdPlaceholder(assertItem)"
-                  :controls="false"
-                />
-                <a-select
-                  v-if="showsGrader(assertItem)"
-                  v-model:value="assertItem.graderId"
-                  class="assert-grader"
-                  :options="graderProviderOptions"
-                  :dropdown-match-select-width="false"
-                  allow-clear
-                  placeholder="评分模型"
-                  :not-found-content="graders.length ? undefined : '请先在「模型评测配置」中添加'"
-                />
-                <a-button
-                  type="text"
-                  danger
-                  class="icon-btn"
-                  @click="removeAssert(detailIndex, assertIndex)"
-                >
-                  <DeleteOutlined />
-                </a-button>
+                </div>
+                <div class="detail-assert-cell metrics" role="cell">
+                  <div v-if="assertHasMetrics(assertItem)" class="assert-metrics">
+                    <a-tooltip
+                      v-if="showsValue(assertItem)"
+                      class="assert-value assert-value-tip"
+                      :title="assertValueTooltip(assertItem)"
+                      placement="topLeft"
+                      overlay-class-name="assert-value-tooltip"
+                    >
+                      <a-input
+                        size="small"
+                        v-model:value="assertItem.value"
+                        :placeholder="valuePlaceholder(assertItem)"
+                      />
+                    </a-tooltip>
+                    <template v-if="showsRange(assertItem)">
+                      <a-input-number
+                        size="small"
+                        v-model:value="assertItem.min"
+                        class="assert-range"
+                        placeholder="最小"
+                        :min="0"
+                        :controls="false"
+                      />
+                      <a-input-number
+                        size="small"
+                        v-model:value="assertItem.max"
+                        class="assert-range"
+                        placeholder="最大"
+                        :min="0"
+                        :controls="false"
+                      />
+                    </template>
+                    <a-input-number
+                      v-if="showsThreshold(assertItem)"
+                      size="small"
+                      v-model:value="assertItem.threshold"
+                      class="assert-threshold"
+                      :placeholder="thresholdPlaceholder(assertItem)"
+                      :controls="false"
+                    />
+                    <a-select
+                      v-if="showsGrader(assertItem)"
+                      size="small"
+                      v-model:value="assertItem.graderId"
+                      class="assert-grader"
+                      :options="graderProviderOptions"
+                      :dropdown-match-select-width="false"
+                      allow-clear
+                      placeholder="评分模型"
+                      :not-found-content="graders.length ? undefined : '请先在「模型评测配置」中添加'"
+                    />
+                  </div>
+                  <span v-else class="assert-metrics-empty">—</span>
+                </div>
+                <div class="detail-assert-cell action" role="cell">
+                  <a-button
+                    type="text"
+                    danger
+                    size="small"
+                    class="icon-btn"
+                    @click="removeAssert(detailIndex, assertIndex)"
+                  >
+                    <DeleteOutlined />
+                  </a-button>
+                </div>
               </div>
             </div>
           </section>
@@ -2124,16 +2200,18 @@ function removeDefaultAssert(index: number) {
 .detail-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-block: 20px;
+  gap: 8px;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--ek-border);
 }
 
 .detail-block:first-child {
-  padding-block-start: 4px;
+  padding-block-start: 0;
 }
 
 .detail-block:last-child {
   padding-block-end: 0;
+  border-bottom: none;
 }
 
 .detail-label-row {
@@ -2141,7 +2219,7 @@ function removeDefaultAssert(index: number) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 24px;
+  min-height: 22px;
 }
 
 .detail-label {
@@ -2152,37 +2230,185 @@ function removeDefaultAssert(index: number) {
   color: var(--ek-ink);
 }
 
+.detail-hint {
+  margin: -2px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ek-muted);
+}
+
+.detail-hint code {
+  font-family: var(--font-code, var(--ek-mono, ui-monospace, monospace));
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(17, 24, 39, 0.06);
+  color: var(--ek-secondary);
+}
+
+.detail-count {
+  font-size: 12px;
+  color: var(--ek-muted);
+}
+
 .detail-textarea :deep(textarea) {
   resize: none;
   line-height: 1.55;
 }
 
-.detail-var-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.detail-var-table {
+  border: 1px solid var(--ek-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.detail-var-head,
+.detail-var-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0;
+}
+
+.detail-var-head {
+  background: #f5f7fa;
+}
+
+.detail-var-head .detail-var-cell {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ek-secondary);
+  padding: 8px 12px;
 }
 
 .detail-var-row {
-  display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
+  border-top: 1px solid var(--ek-border);
+}
+
+.detail-var-row:hover {
+  background: #fafbfc;
+}
+
+.detail-var-cell {
+  min-width: 0;
+  padding: 6px 12px;
 }
 
 .detail-var-key {
   display: block;
   margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  font-family: var(--font-code, var(--ek-mono, ui-monospace, monospace));
   font-size: 12px;
-  line-height: 1.4;
-  color: var(--ek-secondary);
+  line-height: 20px;
+  color: var(--ek-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.detail-var-cell.value {
+  padding-block: 4px;
+}
+
+.detail-var-cell.value :deep(.ant-input-affix-wrapper),
+.detail-var-cell.value :deep(.ant-input) {
+  font-size: 13px;
+}
+
+.detail-var-cell.value :deep(.ant-input-affix-wrapper) {
+  padding-inline: 8px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.detail-var-cell.value :deep(.ant-input-affix-wrapper-focused) {
+  border-color: var(--ek-accent);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+}
+
+.detail-assert-table {
+  border: 1px solid var(--ek-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.detail-assert-head,
+.detail-assert-row {
+  display: grid;
+  grid-template-columns: 72px minmax(132px, 168px) minmax(0, 1fr) 36px;
+  align-items: center;
+}
+
+.detail-assert-head {
+  background: #f5f7fa;
+}
+
+.detail-assert-head .detail-assert-cell {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ek-secondary);
+  padding: 8px 10px;
+}
+
+.detail-assert-row {
+  border-top: 1px solid var(--ek-border);
+}
+
+.detail-assert-row:hover {
+  background: #fafbfc;
+}
+
+.detail-assert-cell {
+  min-width: 0;
+  padding: 6px 10px;
+}
+
+.detail-assert-cell.action {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-inline: 4px;
+}
+
+.detail-assert-cell .assert-polarity,
+.detail-assert-cell .assert-type {
+  width: 100%;
+}
+
+.assert-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.assert-metrics .assert-value,
+.assert-metrics .assert-value-tip {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.assert-metrics .assert-range {
+  flex: 0 0 72px;
+  width: 72px;
+}
+
+.assert-metrics .assert-threshold {
+  flex: 0 0 80px;
+  width: 80px;
+}
+
+.assert-metrics .assert-grader {
+  flex: 0 1 120px;
+  min-width: 100px;
+  max-width: 140px;
+}
+
+.assert-metrics-empty {
+  color: var(--ek-muted);
+  font-size: 13px;
 }
 
 .detail-empty {
@@ -2422,18 +2648,6 @@ function removeDefaultAssert(index: number) {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
-}
-
-.extract-head :deep(.ant-radio-group) {
-  display: inline-flex;
-  flex: 0 0 auto;
-}
-
-.extract-head :deep(.ant-radio-button-wrapper) {
-  height: 28px;
-  line-height: 26px;
-  padding: 0 12px;
-  font-size: 12px;
 }
 
 .extract-toggle-btn {
@@ -2726,31 +2940,102 @@ function removeDefaultAssert(index: number) {
 }
 
 .extract-ai {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: start;
   padding-top: 2px;
 }
 
-.extract-ai-row {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
+.extract-ai > .extract-label {
+  line-height: 20px;
+  padding-top: 14px;
 }
 
-.extract-ai-actions {
+.extract-ai-composer {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+  flex-direction: column;
   min-width: 0;
+  border: 1px solid var(--ek-border);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.extract-ai-composer:focus-within {
+  border-color: rgba(15, 118, 110, 0.45);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.extract-ai-composer :deep(textarea.extract-ai-hint),
+.extract-ai-composer :deep(.extract-ai-hint.ant-input) {
+  width: 100%;
+  padding: 12px 12px 6px;
+  min-height: 72px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ek-ink);
+  background: transparent !important;
+  box-shadow: none !important;
+  resize: none;
+}
+
+.extract-ai-composer :deep(textarea.extract-ai-hint::placeholder),
+.extract-ai-composer :deep(.extract-ai-hint.ant-input::placeholder) {
+  color: var(--ek-muted);
+}
+
+.extract-ai-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 10px;
+  min-width: 0;
+  border-top: 1px solid var(--ek-border);
+  background: var(--ek-bg);
 }
 
 .extract-ai-grader {
-  flex: 1 1 180px;
-  min-width: 140px;
-  max-width: 280px;
+  flex: 0 1 180px;
+  min-width: 120px;
+  max-width: 220px;
+}
+
+.extract-ai-grader :deep(.ant-select-selector) {
+  height: 28px !important;
+  padding-inline: 10px !important;
+  border-radius: 999px !important;
+  border-color: var(--ek-border) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.extract-ai-grader :deep(.ant-select-selection-item),
+.extract-ai-grader :deep(.ant-select-selection-placeholder),
+.extract-ai-grader :deep(.ant-select-arrow) {
+  color: var(--ek-secondary) !important;
+  line-height: 26px !important;
+}
+
+.extract-ai-grader :deep(.ant-select-selection-search-input) {
+  height: 26px !important;
+}
+
+.extract-ai-grader:hover :deep(.ant-select-selector),
+.extract-ai-grader.ant-select-focused :deep(.ant-select-selector) {
+  border-color: rgba(15, 118, 110, 0.35) !important;
+  background: #fff !important;
+}
+
+.extract-ai-submit {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 26px;
 }
 
 .extract-rule {

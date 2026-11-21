@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { Modal, message } from 'ant-design-vue'
 import type { MenuProps } from 'ant-design-vue'
-import { ArrowLeftOutlined, DownOutlined, InfoCircleFilled } from '@ant-design/icons-vue'
+import { ArrowLeftOutlined, CaretRightOutlined, DownOutlined, PauseOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -27,7 +27,12 @@ const canDownload = computed(() => {
   if (run.value.status === 'pending' || run.value.status === 'running') return false
   return Boolean(run.value.total_count || run.value.report_json_url || run.value.report_html_url)
 })
-type ResultFilter = 'all' | 'pass' | 'fail' | 'error'
+
+const pausing = ref(false)
+const resuming = ref(false)
+const isTerminalStatus = (status?: string | null) =>
+  status === 'succeeded' || status === 'failed' || status === 'cancelled'
+type ResultFilter = 'all' | 'pass' | 'fail' | 'error' | 'pending'
 
 const filter = ref<ResultFilter>('all')
 const keyword = ref('')
@@ -47,6 +52,13 @@ let timer: number | undefined
 const isRunInFlight = computed(
   () => run.value?.status === 'pending' || run.value?.status === 'running',
 )
+const isRunPaused = computed(() => run.value?.status === 'cancelled')
+const isRunFinished = computed(
+  () => run.value?.status === 'succeeded' || run.value?.status === 'failed',
+)
+const showProgressBanner = computed(
+  () => isRunInFlight.value || isRunPaused.value || isRunFinished.value || pausing.value,
+)
 
 const runningCompleted = computed(() => {
   if (!run.value) return 0
@@ -62,10 +74,27 @@ const runningTotal = computed(() => {
 
 /** Real completion ratio from streamed JSONL progress. */
 const runningProgress = computed(() => {
-  if (!run.value || !isRunInFlight.value) return 0
+  if (!run.value) return 0
+  if (!isRunInFlight.value && !isRunPaused.value && !isRunFinished.value && !pausing.value) return 0
+  if (run.value.status === 'succeeded') return 100
   const total = runningTotal.value
-  if (!total) return 0
+  if (!total) return run.value.status === 'failed' ? 100 : 0
   return Math.max(0, Math.min(100, Math.round((runningCompleted.value / total) * 100)))
+})
+
+const bannerPausedVisual = computed(() => pausing.value || isRunPaused.value)
+const bannerInteractive = computed(() => isRunInFlight.value || isRunPaused.value || pausing.value)
+
+const runPendingCount = computed(() => {
+  if (!run.value) return 0
+  const fromReport = report.value?.summary?.pending_count
+  if (typeof fromReport === 'number' && fromReport >= 0) return fromReport
+  const total = Number(run.value.total_count) || 0
+  const done =
+    (Number(run.value.pass_count) || 0) +
+    (Number(run.value.fail_count) || 0) +
+    (Number(run.value.error_count) || 0)
+  return Math.max(0, total - done)
 })
 
 const resultFilterOptions = [
@@ -73,6 +102,7 @@ const resultFilterOptions = [
   { label: '通过', value: 'pass' },
   { label: '失败', value: 'fail' },
   { label: '错误', value: 'error' },
+  { label: '未评', value: 'pending' },
 ]
 
 type MatrixCol = {
@@ -162,12 +192,14 @@ const detailOutputText = computed(() =>
 )
 
 function rowTone(row: ReportRow) {
+  if (row.pending) return 'pending'
   if (row.error) return 'error'
   if (row.success) return 'pass'
   return 'fail'
 }
 
 function resultBadge(row: ReportRow) {
+  if (row.pending) return '未评'
   const asserts = row.assertions || []
   if (asserts.length) {
     const passed = asserts.filter((a) => a.pass).length
@@ -219,7 +251,9 @@ const matrixColumns = computed<MatrixCol[]>(() => {
       map.set(key, col)
     }
     col.total += 1
-    if (row.error) col.error += 1
+    if (row.pending) {
+      /* pending cells are not graded */
+    } else if (row.error) col.error += 1
     else if (row.success) col.pass += 1
     else col.fail += 1
   }
@@ -294,9 +328,10 @@ const filteredMatrixRows = computed(() => {
           .map(([, cell]) => cell)
           .filter(Boolean) as ReportRow[])
       : (Object.values(row.cells).filter(Boolean) as ReportRow[])
-    if (filter.value === 'pass' && !cells.some((c) => c.success && !c.error)) return false
-    if (filter.value === 'fail' && !cells.some((c) => !c.success && !c.error)) return false
-    if (filter.value === 'error' && !cells.some((c) => !!c.error)) return false
+    if (filter.value === 'pass' && !cells.some((c) => c.success && !c.error && !c.pending)) return false
+    if (filter.value === 'fail' && !cells.some((c) => !c.success && !c.error && !c.pending)) return false
+    if (filter.value === 'error' && !cells.some((c) => !!c.error && !c.pending)) return false
+    if (filter.value === 'pending' && !cells.some((c) => !!c.pending)) return false
     if (!q) return true
     const hay = `${row.description} ${inputPreview(row.vars)} ${cells
       .map((c) => `${c.provider} ${c.prompt} ${c.output}`)
@@ -427,9 +462,11 @@ const pieOption = computed(() => {
     { name: '通过', value: s.pass_count ?? 0, color: '#3d8b66' },
     { name: '失败', value: s.fail_count ?? 0, color: '#c45c5c' },
     { name: '错误', value: s.error_count ?? 0, color: '#b0893d' },
+    { name: '未评', value: s.pending_count ?? 0, color: '#94a3b8' },
   ]
+  const graded = (s.pass_count ?? 0) + (s.fail_count ?? 0)
   const total = stats.reduce((sum, item) => sum + item.value, 0)
-  const passRate = total ? Math.round(((s.pass_count ?? 0) / total) * 1000) / 10 : 0
+  const passRate = graded ? Math.round(((s.pass_count ?? 0) / graded) * 1000) / 10 : 0
   const pieData = stats
     .filter((item) => item.value > 0)
     .map((item) => ({
@@ -529,7 +566,10 @@ const pieOption = computed(() => {
 const barOption = computed(() => {
   const items = report.value?.by_provider || []
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: (value: number | string) => `${value}%`,
+    },
     grid: { left: 40, right: 16, top: 24, bottom: 40 },
     xAxis: {
       type: 'category',
@@ -554,6 +594,14 @@ const barOption = computed(() => {
   }
 })
 
+async function refreshReport(id: string, { clearOnMiss = false }: { clearOnMiss?: boolean } = {}) {
+  try {
+    report.value = await api.getReport(id)
+  } catch {
+    if (clearOnMiss) report.value = null
+  }
+}
+
 async function load() {
   const id = String(route.params.id || '').trim()
   if (!id) {
@@ -574,9 +622,8 @@ async function load() {
   selectedPrompt.value = []
   try {
     run.value = await api.getRun(id)
-    if (run.value.status === 'succeeded' || run.value.status === 'failed') {
-      report.value = await api.getReport(id)
-    }
+    // Live + paused runs also show the matrix (未执行 cells fill in as cases finish).
+    await refreshReport(id, { clearOnMiss: true })
   } catch (err: any) {
     const status = err?.response?.status
     const detail = err?.response?.data?.detail
@@ -643,16 +690,63 @@ function popupContainer() {
   return document.body
 }
 
+async function pauseRun() {
+  if (!run.value || pausing.value || !isRunInFlight.value) return
+  Modal.confirm({
+    title: '暂停测评？',
+    content: '将停止当前批次剩余用例，已完成的结果会保留。',
+    okText: '暂停',
+    cancelText: '继续',
+    okButtonProps: { danger: true },
+    async onOk() {
+      pausing.value = true
+      try {
+        run.value = await api.cancelRun(String(route.params.id))
+        message.success('测评已暂停')
+        await refreshReport(String(route.params.id))
+      } catch (err: any) {
+        const detail = err?.response?.data?.detail || err?.message || '暂停失败'
+        message.error(detail)
+        throw err
+      } finally {
+        pausing.value = false
+      }
+    },
+  })
+}
+
+async function resumeRun() {
+  if (!run.value || resuming.value || run.value.status !== 'cancelled') return
+  resuming.value = true
+  try {
+    const summary = await api.resumeRun(String(route.params.id))
+    run.value = { ...run.value, ...summary }
+    // Resume endpoint returns a summary; refresh detail so polling / banner
+    // pick up pending|running immediately without a manual reload.
+    try {
+      run.value = await api.getRun(String(route.params.id))
+    } catch {
+      // keep merged summary if detail fetch races
+    }
+    await refreshReport(String(route.params.id))
+    message.success('已继续测评')
+  } catch (err: any) {
+    const detail = err?.response?.data?.detail || err?.message || '继续测评失败'
+    message.error(detail)
+  } finally {
+    resuming.value = false
+  }
+}
+
 onMounted(() => {
   load()
   timer = window.setInterval(async () => {
     if (!run.value) return
     if (run.value.status === 'pending' || run.value.status === 'running') {
+      const id = String(route.params.id)
       try {
-        run.value = await api.getRun(String(route.params.id))
-        if (run.value.status === 'succeeded' || run.value.status === 'failed') {
-          report.value = await api.getReport(String(route.params.id))
-        }
+        run.value = await api.getRun(id)
+        await refreshReport(id)
       } catch {
         // keep polling until user leaves
       }
@@ -687,15 +781,13 @@ onUnmounted(() => {
               </a-tooltip>
               <span class="task-name" :title="run.config_name">{{ run.config_name || '未命名任务' }}</span>
               <StatusTag :status="run.status" />
-              <span v-if="isRunInFlight" class="meta-item running-pct mono">
-                {{ runningCompleted }}/{{ runningTotal || '—' }} · {{ runningProgress }}%
-              </span>
               <span class="meta-item">
                 通过率
                 <strong class="mono accent">{{ run.pass_rate }}%</strong>
               </span>
               <span class="meta-item mono">
-                {{ run.pass_count }} 通过 / {{ run.fail_count }} 失败 / {{ run.error_count }} 错误
+                {{ run.pass_count }} 通过 / {{ run.fail_count }} 失败 /
+                {{ runPendingCount }} 未评 / {{ run.error_count }} 错误
               </span>
               <span v-if="run.duration_ms" class="meta-item mono">
                 {{ (run.duration_ms / 1000).toFixed(1) }}s
@@ -725,38 +817,79 @@ onUnmounted(() => {
               </a-dropdown>
             </div>
           </div>
-          <a-alert
-            v-if="run.status === 'failed'"
-            class="meta-alert"
-            type="error"
-            show-icon
-            :message="run.error || '测评失败'"
-          />
           <div
-            v-if="isRunInFlight"
+            v-if="showProgressBanner"
             class="meta-alert running-banner"
-            role="status"
+            :class="{
+              'is-warming': isRunInFlight && !pausing && runningProgress < 1,
+              'is-paused': bannerPausedVisual,
+              'is-finished': run.status === 'succeeded',
+              'is-failed': run.status === 'failed',
+            }"
+            role="progressbar"
             aria-live="polite"
+            :aria-valuenow="runningProgress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-label="
+              run.status === 'succeeded'
+                ? `测评已完成 ${runningProgress}%`
+                : run.status === 'failed'
+                  ? `测评失败 ${runningProgress}%`
+                  : bannerPausedVisual
+                    ? `测评已暂停 ${runningProgress}%`
+                    : `测评进度 ${runningProgress}%`
+            "
           >
+            <div class="running-banner-sheen" aria-hidden="true" />
+            <div
+              class="running-banner-fill"
+              :style="{
+                width: `${Math.max(runningProgress, isRunInFlight && !pausing && runningProgress < 1 ? 6 : 0)}%`,
+              }"
+            />
             <div class="running-banner-head">
-              <InfoCircleFilled class="running-banner-icon" />
+              <button
+                v-if="bannerInteractive"
+                type="button"
+                class="running-banner-pause"
+                :disabled="pausing || resuming"
+                :title="
+                  pausing
+                    ? '正在暂停…'
+                    : isRunPaused
+                      ? '继续测评'
+                      : '暂停测评'
+                "
+                :aria-label="
+                  pausing
+                    ? '正在暂停'
+                    : isRunPaused
+                      ? '继续测评'
+                      : '暂停测评'
+                "
+                @click="isRunPaused ? resumeRun() : pauseRun()"
+              >
+                <span
+                  v-if="isRunInFlight || pausing || resuming"
+                  class="running-banner-pause-ring"
+                  aria-hidden="true"
+                />
+                <CaretRightOutlined v-if="bannerPausedVisual" class="running-banner-pause-icon" />
+                <PauseOutlined v-else class="running-banner-pause-icon" />
+              </button>
               <span class="running-banner-text">
-                测评进行中，页面会自动刷新
+                <template v-if="pausing">正在暂停测评…</template>
+                <template v-else-if="isRunPaused">测评已暂停，点击继续剩余任务</template>
+                <template v-else-if="run.status === 'succeeded'">测评已完成</template>
+                <template v-else-if="run.status === 'failed'">测评失败，无法继续</template>
+                <template v-else>测评任务进行中，请耐心等待...</template>
                 <span class="running-banner-count mono">
                   （已完成 {{ runningCompleted }}/{{ runningTotal || '—' }}）
                 </span>
               </span>
               <span class="running-banner-pct mono">{{ runningProgress }}%</span>
             </div>
-            <a-progress
-              class="running-banner-bar"
-              :percent="runningProgress"
-              :show-info="false"
-              status="active"
-              :stroke-color="{ from: '#5f8f88', to: '#0f766e' }"
-              trail-color="rgba(255, 255, 255, 0.45)"
-              :stroke-width="10"
-            />
           </div>
         </div>
 
@@ -883,12 +1016,13 @@ onUnmounted(() => {
                       <div class="vars-cell mono">{{ inputPreview(record.vars) }}</div>
                     </template>
                     <template v-else-if="cellOf(record, column.key)">
-                      <div class="result-card">
+                      <div class="result-card" :class="{ 'is-pending': cellOf(record, column.key)!.pending }">
                         <div class="result-top">
                           <span class="result-badge" :class="rowTone(cellOf(record, column.key)!)">
                             {{ resultBadge(cellOf(record, column.key)!) }}
                           </span>
                           <a
+                            v-if="!cellOf(record, column.key)!.pending"
                             class="detail-link"
                             href="#"
                             @click.prevent="openDetail(cellOf(record, column.key)!)"
@@ -898,10 +1032,12 @@ onUnmounted(() => {
                         </div>
                         <div class="result-output">
                           {{
-                            cellOf(record, column.key)!.output ||
-                            cellOf(record, column.key)!.error ||
-                            cellOf(record, column.key)!.reason ||
-                            '—'
+                            cellOf(record, column.key)!.pending
+                              ? '未评'
+                              : cellOf(record, column.key)!.output ||
+                                cellOf(record, column.key)!.error ||
+                                cellOf(record, column.key)!.reason ||
+                                '—'
                           }}
                         </div>
                         <details
@@ -932,6 +1068,7 @@ onUnmounted(() => {
                   :page-size="matrixPageSize"
                   size="small"
                   show-less-items
+                  :show-size-changer="false"
                   :show-total="(total: number) => `共 ${total} 条`"
                 />
               </div>
@@ -1121,32 +1258,153 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.running-pct {
-  color: var(--ek-accent-ink, #0b5f59);
-  font-weight: 500;
+.running-banner {
+  --rb-accent: var(--ek-accent, #0f766e);
+  --rb-accent-ink: var(--ek-accent-ink, #0b5f59);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--rb-accent) 22%, transparent);
+  background:
+    radial-gradient(120% 180% at 0% 50%, color-mix(in srgb, var(--rb-accent) 10%, transparent), transparent 55%),
+    color-mix(in srgb, var(--rb-accent) 6%, #fff);
+  color: var(--ek-ink, #111827);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 70%, transparent);
+  animation: running-banner-breathe 2.8s ease-in-out infinite;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
-.running-banner {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: #a7b5b2;
-  color: #1f2937;
+.running-banner.is-paused {
+  --rb-accent: var(--ek-warn, #a16207);
+  --rb-accent-ink: #854d0e;
+  animation: none;
+}
+
+.running-banner.is-finished {
+  animation: none;
+}
+
+.running-banner.is-failed {
+  --rb-accent: var(--ek-danger, #dc2626);
+  --rb-accent-ink: #b91c1c;
+  animation: none;
+}
+
+.running-banner.is-paused .running-banner-sheen,
+.running-banner.is-paused .running-banner-fill::after,
+.running-banner.is-paused .running-banner-pct,
+.running-banner.is-finished .running-banner-sheen,
+.running-banner.is-finished .running-banner-fill::after,
+.running-banner.is-finished .running-banner-pct,
+.running-banner.is-failed .running-banner-sheen,
+.running-banner.is-failed .running-banner-fill::after,
+.running-banner.is-failed .running-banner-pct {
+  animation: none;
+}
+
+.running-banner-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 36%,
+    color-mix(in srgb, #fff 55%, transparent) 48%,
+    transparent 60%
+  );
+  background-size: 220% 100%;
+  animation: running-banner-sheen 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.running-banner-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  min-width: 0;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--rb-accent) 18%, #fff),
+      color-mix(in srgb, var(--rb-accent) 42%, #fff)
+    );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rb-accent) 8%, transparent);
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.running-banner-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, #fff 45%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 180% 100%;
+  animation: running-banner-sheen 1.8s linear infinite;
+  opacity: 0.7;
+}
+
+.running-banner.is-warming .running-banner-fill {
+  animation: running-banner-warm 1.6s ease-in-out infinite;
 }
 
 .running-banner-head {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
-.running-banner-icon {
+.running-banner-pause {
+  position: relative;
   flex: 0 0 auto;
-  font-size: 14px;
-  color: #334155;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rb-accent) 14%, #fff);
+  color: var(--rb-accent-ink);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.running-banner-pause:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rb-accent) 22%, #fff);
+  transform: scale(1.04);
+}
+
+.running-banner-pause:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.running-banner-pause-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--rb-accent) 22%, transparent);
+  border-top-color: var(--rb-accent-ink);
+  animation: running-banner-spin 0.9s linear infinite;
+}
+
+.running-banner-pause-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
 }
 
 .running-banner-text {
@@ -1154,33 +1412,89 @@ onUnmounted(() => {
   min-width: 0;
   font-size: 13px;
   line-height: 20px;
+  color: var(--ek-secondary, #4b5565);
 }
 
 .running-banner-count {
   margin-left: 4px;
-  color: #334155;
+  color: var(--rb-accent-ink);
   font-weight: 500;
 }
 
 .running-banner-pct {
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  letter-spacing: 0.02em;
+  color: var(--rb-accent-ink);
+  font-variant-numeric: tabular-nums;
+  animation: running-banner-pct 2.2s ease-in-out infinite;
 }
 
-.running-banner-bar {
-  margin: 0;
-  line-height: 1;
+@keyframes running-banner-sheen {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -40% 0;
+  }
 }
 
-.running-banner-bar :deep(.ant-progress-outer) {
-  margin-inline-end: 0;
-  padding-inline-end: 0;
+@keyframes running-banner-breathe {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, #fff 70%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--rb-accent) 0%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, #fff 70%, transparent),
+      0 0 0 4px color-mix(in srgb, var(--rb-accent) 8%, transparent);
+  }
 }
 
-.running-banner-bar :deep(.ant-progress-inner) {
-  background: rgba(255, 255, 255, 0.45);
+@keyframes running-banner-warm {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+  50% {
+    opacity: 0.95;
+    transform: scaleX(1.35);
+    transform-origin: left center;
+  }
+}
+
+@keyframes running-banner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes running-banner-pct {
+  0%,
+  100% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .running-banner,
+  .running-banner-sheen,
+  .running-banner-fill,
+  .running-banner-fill::after,
+  .running-banner.is-warming .running-banner-fill,
+  .running-banner-pause-ring,
+  .running-banner-pct {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 .charts {
@@ -1403,6 +1717,15 @@ onUnmounted(() => {
 .result-badge.error {
   color: #92400e;
   background: rgba(161, 98, 7, 0.12);
+}
+
+.result-badge.pending {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+}
+
+.result-card.is-pending {
+  opacity: 0.78;
 }
 
 .detail-link {

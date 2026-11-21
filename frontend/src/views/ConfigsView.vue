@@ -20,7 +20,7 @@ const form = reactive({
   description: '',
 })
 
-type ResultFilter = 'all' | 'succeeded' | 'failed' | 'running' | 'pending' | 'none'
+type ResultFilter = 'all' | 'succeeded' | 'failed' | 'cancelled' | 'running' | 'pending' | 'none'
 const draftKeyword = ref('')
 const draftResult = ref<ResultFilter>('all')
 const keyword = ref('')
@@ -30,6 +30,7 @@ const resultFilterOptions = [
   { label: '全部结果', value: 'all' },
   { label: '成功', value: 'succeeded' },
   { label: '失败', value: 'failed' },
+  { label: '已暂停', value: 'cancelled' },
   { label: '运行中', value: 'running' },
   { label: '等待中', value: 'pending' },
   { label: '暂无运行', value: 'none' },
@@ -147,10 +148,11 @@ function latestRun(configId: string) {
 }
 
 function resultLabel(run: EvalRunSummary) {
-  if ((run.status === 'succeeded' || run.status === 'failed') && run.total_count) {
+  if ((run.status === 'succeeded' || run.status === 'failed' || run.status === 'cancelled') && run.total_count) {
     return `${run.pass_rate}% · ${run.pass_count}/${run.total_count}`
   }
   if (run.status === 'failed') return '失败'
+  if (run.status === 'cancelled') return '已暂停'
   if (run.status === 'running') return '运行中'
   if (run.status === 'pending') return '等待中'
   return ''

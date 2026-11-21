@@ -12,6 +12,7 @@ class EvalStatus(str, Enum):
     running = "running"
     succeeded = "succeeded"
     failed = "failed"
+    cancelled = "cancelled"
 
 
 class ConfigCreate(BaseModel):

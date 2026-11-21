@@ -222,6 +222,7 @@ onMounted(load)
                     <header class="panel-head">
                       <div class="head-text">
                         <h3>基本信息</h3>
+                        <p>填写任务名称与描述，便于在任务列表中识别和管理本次测评配置。</p>
                       </div>
                     </header>
                     <div class="panel-body">
@@ -247,6 +248,7 @@ onMounted(load)
                     v-show="visualStep !== 1"
                     v-model="visual"
                     :config-id="String(route.params.id || '')"
+                    :task-name="form.name"
                     :section="
                       (visualStep === 1
                         ? 'prompts'

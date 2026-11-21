@@ -284,6 +284,10 @@
     background: var(--color-muted);
   }
 
+  .status-dot.is-warn {
+    background: var(--color-warn);
+  }
+
   /* Shared section chrome (drawers / forms) */
   .ek-section {
     display: flex;

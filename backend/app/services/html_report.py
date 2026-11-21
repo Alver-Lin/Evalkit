@@ -11,7 +11,7 @@ from app.models.schemas import EvalRunSummary
 
 _ASSERT_LABELS: dict[str, str] = {
     "similar": "语义相似",
-    "llm-rubric": "模型评分标准",
+    "llm-rubric": "模型评分",
     "contains": "包含",
     "icontains": "包含忽略大小写",
     "equals": "完全相等",
@@ -60,6 +60,7 @@ def _status_label(status: str) -> str:
         "running": "运行中",
         "succeeded": "成功",
         "failed": "失败",
+        "cancelled": "已暂停",
     }.get(status, status)
 
 
@@ -418,6 +419,7 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
     }}
     .dot.ok {{ background: #10b981; }}
     .dot.fail {{ background: #ef4444; }}
+    .dot.warn {{ background: #a16207; }}
     .dot.run {{ background: #3b82f6; }}
     .chip {{ font-size: 13px; color: var(--secondary); }}
     .chip strong {{
@@ -721,7 +723,7 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
       <div class="meta-row">
         <span class="task">{_esc(title)}</span>
         <span class="status">
-          <span class="dot {'ok' if status_value == 'succeeded' else ('fail' if status_value == 'failed' else 'run')}"></span>
+          <span class="dot {'ok' if status_value == 'succeeded' else ('fail' if status_value == 'failed' else ('warn' if status_value == 'cancelled' else 'run'))}"></span>
           {_esc(_status_label(status_value))}
         </span>
         <span class="chip">通过率<strong class="mono">{pass_rate:.2f}%</strong></span>
