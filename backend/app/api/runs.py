@@ -1,16 +1,35 @@
 from __future__ import annotations
 
+import re
+from datetime import datetime
+from urllib.parse import quote
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 
 from app.models.schemas import EvalRunDetail, EvalRunRequest, EvalRunSummary, EvalStatus
 from app.services.html_report import build_evalkit_html_report
 from app.services.promptfoo_runner import promptfoo_runner
-from app.services.report_builder import build_run_report_view, results_to_csv
+from app.services.report_builder import build_run_report_view, table_to_csv, table_to_xlsx
 from app.services.run_progress import apply_progress_to_summary, progress_segment_paths
 from app.services.store import config_store, run_store
 
 router = APIRouter(prefix="/runs", tags=["runs"])
+
+_BAD_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]+')
+
+
+def _export_filename(summary: EvalRunSummary, ext: str) -> str:
+    """`{任务名称}-测评报告-{导出时间}.{ext}`"""
+    name = (summary.config_name or "未命名任务").strip() or "未命名任务"
+    name = _BAD_FILENAME_CHARS.sub("_", name)
+    name = re.sub(r"\s+", " ", name).strip()[:80] or "未命名任务"
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return f"{name}-测评报告-{stamp}.{ext}"
+
+
+def _content_disposition(disposition: str, filename: str) -> str:
+    return f"{disposition}; filename*=UTF-8''{quote(filename)}"
 
 
 @router.get("", response_model=list[EvalRunSummary])
@@ -148,6 +167,7 @@ def download_html(run_id: str) -> Response:
     html_text = build_evalkit_html_report(summary, view)
     # Persist for offline reuse; always regenerate so style stays current.
     run_store.html_path(run_id).write_text(html_text, encoding="utf-8")
+    filename = _export_filename(summary, "html")
     return HTMLResponse(
         content=html_text,
         media_type="text/html; charset=utf-8",
@@ -155,7 +175,7 @@ def download_html(run_id: str) -> Response:
             # Avoid browsers/proxies serving a previously downloaded promptfoo HTML.
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "Pragma": "no-cache",
-            "Content-Disposition": f'inline; filename="evalkit-report-{run_id}.html"',
+            "Content-Disposition": _content_disposition("inline", filename),
         },
     )
 
@@ -163,15 +183,37 @@ def download_html(run_id: str) -> Response:
 @router.get("/{run_id}/report.csv")
 def download_csv(run_id: str) -> Response:
     try:
-        run_store.get(run_id)
+        summary = run_store.get(run_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     run_dir = run_store.run_dir(run_id)
     view = build_run_report_view(run_dir)
-    # results_to_csv expects raw results; reuse table via a shim dict.
-    csv_text = results_to_csv({"results": {"results": view.get("table") or []}})
+    if not view.get("table"):
+        raise HTTPException(status_code=404, detail="尚无结果")
+    # BOM so Excel opens Chinese columns correctly.
+    csv_text = "\ufeff" + table_to_csv(view.get("table") or [])
+    filename = _export_filename(summary, "csv")
     return PlainTextResponse(
         csv_text,
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="evalkit-{run_id}.csv"'},
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": _content_disposition("attachment", filename)},
+    )
+
+
+@router.get("/{run_id}/report.xlsx")
+def download_xlsx(run_id: str) -> Response:
+    try:
+        summary = run_store.get(run_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    run_dir = run_store.run_dir(run_id)
+    view = build_run_report_view(run_dir)
+    if not view.get("table"):
+        raise HTTPException(status_code=404, detail="尚无结果")
+    payload = table_to_xlsx(view.get("table") or [], summary=summary, view=view)
+    filename = _export_filename(summary, "xlsx")
+    return Response(
+        content=payload,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": _content_disposition("attachment", filename)},
     )

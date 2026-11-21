@@ -218,10 +218,10 @@ def _render_result_cell(row: dict[str, Any] | None) -> str:
       <div class="result-card" data-tone="{tone}">
         <div class="result-top">
           <span class="result-badge {tone}">{_esc(badge)}</span>
-          {detail_block or '<span class="detail-spacer"></span>'}
         </div>
         <div class="result-output">{_esc(output)}</div>
         <div class="result-meta mono">{' · '.join(meta_bits)}</div>
+        {detail_block}
       </div>
     """
 
@@ -656,6 +656,9 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
       font-size: 12px;
       color: var(--muted);
     }}
+    .cell-detail {{
+      margin-top: 2px;
+    }}
     .cell-detail summary {{
       list-style: none;
       cursor: pointer;
@@ -709,6 +712,45 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
       margin-left: auto;
       font-size: 12px;
       color: var(--muted);
+    }}
+    .pager {{
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }}
+    .pager-info {{
+      font-size: 12px;
+      color: var(--muted);
+      margin-right: auto;
+    }}
+    .pager button {{
+      min-width: 32px;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }}
+    .pager button:disabled {{
+      opacity: 0.45;
+      cursor: not-allowed;
+    }}
+    .pager button.active {{
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }}
+    .pager .pager-pages {{
+      display: inline-flex;
+      gap: 4px;
+      flex-wrap: wrap;
     }}
   </style>
 </head>
@@ -789,21 +831,90 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
           </tbody>
         </table>
       </div>
+      <div class="pager" id="matrix-pager" hidden>
+        <span class="pager-info mono" id="pager-info"></span>
+        <button type="button" id="pager-prev">上一页</button>
+        <div class="pager-pages" id="pager-pages"></div>
+        <button type="button" id="pager-next">下一页</button>
+      </div>
     </section>
 
     <div class="footer">由 EvalKit 生成 · {_esc(generated)}</div>
   </div>
   <script>
     (function () {{
+      var PAGE_SIZE = 10;
       var keywordEl = document.getElementById('f-keyword');
       var resultEl = document.getElementById('f-result');
       var providerEl = document.getElementById('f-provider');
       var promptEl = document.getElementById('f-prompt');
       var countEl = document.getElementById('f-count');
+      var pagerEl = document.getElementById('matrix-pager');
+      var pagerInfoEl = document.getElementById('pager-info');
+      var pagerPagesEl = document.getElementById('pager-pages');
+      var prevBtn = document.getElementById('pager-prev');
+      var nextBtn = document.getElementById('pager-next');
       var rows = Array.prototype.slice.call(document.querySelectorAll('.matrix-row'));
       var resultCols = Array.prototype.slice.call(document.querySelectorAll('th.col-result, td.col-result'));
+      var page = 1;
+      var matched = [];
 
-      function applyFilters() {{
+      function pageCount() {{
+        return Math.max(1, Math.ceil(matched.length / PAGE_SIZE) || 1);
+      }}
+
+      function renderPager() {{
+        var total = matched.length;
+        var pages = pageCount();
+        if (page > pages) page = pages;
+        countEl.textContent = '共 ' + total + ' 条';
+        if (total <= PAGE_SIZE) {{
+          pagerEl.hidden = true;
+          return;
+        }}
+        pagerEl.hidden = false;
+        var start = (page - 1) * PAGE_SIZE + 1;
+        var end = Math.min(page * PAGE_SIZE, total);
+        pagerInfoEl.textContent = '第 ' + start + '-' + end + ' 条';
+        prevBtn.disabled = page <= 1;
+        nextBtn.disabled = page >= pages;
+
+        pagerPagesEl.innerHTML = '';
+        var windowSize = 5;
+        var from = Math.max(1, page - Math.floor(windowSize / 2));
+        var to = Math.min(pages, from + windowSize - 1);
+        from = Math.max(1, to - windowSize + 1);
+        for (var i = from; i <= to; i++) {{
+          (function (n) {{
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = String(n);
+            if (n === page) btn.className = 'active';
+            btn.addEventListener('click', function () {{
+              page = n;
+              paintPage();
+            }});
+            pagerPagesEl.appendChild(btn);
+          }})(i);
+        }}
+      }}
+
+      function paintPage() {{
+        var pages = pageCount();
+        if (page > pages) page = pages;
+        var start = (page - 1) * PAGE_SIZE;
+        var end = start + PAGE_SIZE;
+        rows.forEach(function (row) {{
+          row.classList.add('hidden');
+        }});
+        matched.forEach(function (row, idx) {{
+          if (idx >= start && idx < end) row.classList.remove('hidden');
+        }});
+        renderPager();
+      }}
+
+      function applyFilters(resetPage) {{
+        if (resetPage !== false) page = 1;
         var q = (keywordEl.value || '').trim().toLowerCase();
         var tone = resultEl.value || 'all';
         var provider = providerEl.value || '';
@@ -816,7 +927,7 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
           el.style.display = show ? '' : 'none';
         }});
 
-        var visible = 0;
+        matched = [];
         rows.forEach(function (row) {{
           var ok = true;
           if (tone !== 'all' && row.getAttribute('data-tone') !== tone) ok = false;
@@ -825,7 +936,6 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
             if (hay.indexOf(q) === -1) ok = false;
           }}
           if (ok) {{
-            // Hide row if all result cells are filtered out
             var cells = row.querySelectorAll('td.col-result');
             var anyVisible = false;
             cells.forEach(function (c) {{
@@ -833,23 +943,37 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
             }});
             if (!anyVisible && cells.length) ok = false;
           }}
-          row.classList.toggle('hidden', !ok);
-          if (ok) visible += 1;
+          if (ok) matched.push(row);
         }});
-        countEl.textContent = '共 ' + visible + ' 条';
+        paintPage();
       }}
 
-      document.getElementById('f-apply').addEventListener('click', applyFilters);
+      prevBtn.addEventListener('click', function () {{
+        if (page > 1) {{
+          page -= 1;
+          paintPage();
+        }}
+      }});
+      nextBtn.addEventListener('click', function () {{
+        if (page < pageCount()) {{
+          page += 1;
+          paintPage();
+        }}
+      }});
+      document.getElementById('f-apply').addEventListener('click', function () {{
+        applyFilters(true);
+      }});
       document.getElementById('f-reset').addEventListener('click', function () {{
         keywordEl.value = '';
         resultEl.value = 'all';
         providerEl.value = '';
         promptEl.value = '';
-        applyFilters();
+        applyFilters(true);
       }});
       keywordEl.addEventListener('keydown', function (e) {{
-        if (e.key === 'Enter') applyFilters();
+        if (e.key === 'Enter') applyFilters(true);
       }});
+      applyFilters(true);
     }})();
   </script>
 </body>

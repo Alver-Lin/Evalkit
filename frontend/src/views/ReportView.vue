@@ -636,44 +636,84 @@ async function load() {
   }
 }
 
-function reportFileUrl(kind: 'json' | 'html' | 'csv') {
+function reportFileUrl(kind: 'json' | 'html' | 'csv' | 'xlsx') {
   return `/api/runs/${route.params.id}/report.${kind}`
 }
 
-async function download(kind: 'json' | 'html' | 'csv') {
+/** `{任务名称}-测评报告-{导出时间}.{ext}` */
+function exportFileName(ext: 'html' | 'csv' | 'xlsx') {
+  const raw = (run.value?.config_name || '未命名任务').trim() || '未命名任务'
+  const safe = raw.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, ' ').slice(0, 80)
+  const stamp = dayjs().format('YYYYMMDD-HHmmss')
+  return `${safe}-测评报告-${stamp}.${ext}`
+}
+
+function triggerDownload(objectUrl: string, filename: string) {
+  const a = document.createElement('a')
+  a.href = objectUrl
+  a.download = filename
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
+async function download(kind: 'json' | 'html' | 'csv' | 'xlsx') {
   const url = `${reportFileUrl(kind)}?t=${Date.now()}`
-  // HTML: fetch as blob so the tab never opens a stale Downloads/copy of promptfoo HTML.
-  if (kind === 'html') {
+  const toastKey = `export-${kind}`
+
+  // HTML: open in a new tab. Excel/CSV: force download via blob.
+  if (kind === 'html' || kind === 'csv' || kind === 'xlsx') {
+    const isExcel = kind === 'xlsx' || kind === 'csv'
     try {
-      message.loading({ content: '正在生成报告…', key: 'export-html', duration: 0 })
+      message.loading({
+        content: kind === 'html' ? '正在生成报告…' : '正在导出 Excel…',
+        key: toastKey,
+        duration: 0,
+      })
       const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' })
       if (!res.ok) {
-        throw new Error((await res.text()) || `HTTP ${res.status}`)
+        let detail = `HTTP ${res.status}`
+        const text = await res.text().catch(() => '')
+        if (text) {
+          try {
+            const body = JSON.parse(text)
+            if (body?.detail) detail = String(body.detail)
+            else detail = text.slice(0, 200)
+          } catch {
+            detail = text.slice(0, 200)
+          }
+        }
+        throw new Error(detail)
       }
       const blob = await res.blob()
       const objectUrl = URL.createObjectURL(blob)
-      const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer')
-      if (!opened) {
-        // Fallback: force download if popup blocked.
-        const a = document.createElement('a')
-        a.href = objectUrl
-        a.download = `evalkit-report-${String(route.params.id)}.html`
-        a.rel = 'noopener'
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        message.warning({ content: '浏览器拦截了新窗口，已改为下载文件', key: 'export-html' })
+      const filename = exportFileName(kind === 'csv' ? 'csv' : kind)
+      if (kind === 'html') {
+        const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+        if (!opened) {
+          triggerDownload(objectUrl, filename)
+          message.warning({ content: '浏览器拦截了新窗口，已改为下载文件', key: toastKey })
+        } else {
+          message.success({ content: '已打开 EvalKit 报告', key: toastKey })
+        }
       } else {
-        message.success({ content: '已打开 EvalKit 报告', key: 'export-html' })
+        triggerDownload(objectUrl, filename)
+        message.success({ content: isExcel ? '已导出 Excel' : '已导出', key: toastKey })
       }
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
     } catch (err: any) {
-      message.error({ content: err?.message || '导出 HTML 失败', key: 'export-html' })
+      message.error({
+        content:
+          err?.message ||
+          (kind === 'html' ? '导出 HTML 失败' : isExcel ? '导出 Excel 失败' : '导出失败'),
+        key: toastKey,
+      })
     }
     return
   }
 
-  // Always open in a new tab. Never navigate the SPA away to /api/... (that breaks back/refresh).
+  // Fallback kinds: open in a new tab (never navigate the SPA away).
   const opened = window.open(url, '_blank', 'noopener,noreferrer')
   if (!opened) {
     message.warning('浏览器拦截了新窗口，请允许弹窗后重试')
@@ -681,7 +721,7 @@ async function download(kind: 'json' | 'html' | 'csv') {
 }
 
 const onExportMenuClick: MenuProps['onClick'] = ({ key }) => {
-  if (key === 'json' || key === 'csv' || key === 'html') {
+  if (key === 'xlsx' || key === 'html') {
     void download(key)
   }
 }
@@ -809,8 +849,7 @@ onUnmounted(() => {
                 </a-button>
                 <template #overlay>
                   <a-menu @click="onExportMenuClick">
-                    <a-menu-item key="json">导出 JSON</a-menu-item>
-                    <a-menu-item key="csv">导出 CSV</a-menu-item>
+                    <a-menu-item key="xlsx">导出 Excel</a-menu-item>
                     <a-menu-item key="html">导出 HTML</a-menu-item>
                   </a-menu>
                 </template>
