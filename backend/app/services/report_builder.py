@@ -404,6 +404,9 @@ def _csv_format_asserts(row: dict[str, Any]) -> str:
             continue
         ok = bool(item.get("pass"))
         label = _csv_assert_label(item.get("type"))
+        metric = str(item.get("metric") or "").strip()
+        if metric:
+            label = f"{label}·{metric}"
         mark = "✓ 通过" if ok else "✗ 失败"
         reason = str(item.get("reason") or ("通过" if ok else "未通过")).strip()
         blocks.append(f"{idx}. [{mark}] {label}\n   {reason}")
@@ -617,57 +620,62 @@ def table_to_xlsx(
         overview.cell(row=17, column=col).alignment = center
         overview.cell(row=17, column=col).fill = zebra_fill
 
-    # Provider pass rates (bar chart equivalent)
-    overview["A19"] = "供应商通过率"
+    # Assertion metrics (replaces provider pass-rate chart)
+    overview["A19"] = "断言指标"
     overview["A19"].font = section_font
     overview.merge_cells("A19:E19")
 
-    provider_headers = ["供应商", "通过率", "通过", "失败", "未评", "错误", "总数"]
-    for col, title in enumerate(provider_headers, start=1):
+    assert_headers = ["断言", "通过", "失败", "合计", "细则"]
+    for col, title in enumerate(assert_headers, start=1):
         cell = overview.cell(row=20, column=col, value=title)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = center
         cell.border = thin
-    overview.column_dimensions["F"].width = 10
-    overview.column_dimensions["G"].width = 10
+    overview.column_dimensions["E"].width = 48
 
-    providers = (view or {}).get("by_provider") or []
-    if not providers:
-        cell = overview.cell(row=21, column=1, value="暂无供应商数据")
+    assert_items = assert_metric_buckets(table)
+    if not assert_items:
+        cell = overview.cell(row=21, column=1, value="暂无断言数据")
         cell.font = mute_font
-        overview.merge_cells("A21:G21")
+        overview.merge_cells("A21:E21")
     else:
-        for offset, item in enumerate(providers):
+        for offset, item in enumerate(assert_items):
             r = 21 + offset
-            rate = float(item.get("pass_rate") or 0)
+            pass_n = int(item.get("pass") or 0)
+            fail_n = int(item.get("fail") or 0)
             values = [
-                item.get("name") or "—",
-                f"{rate:.2f}%",
-                int(item.get("pass") or 0),
-                int(item.get("fail") or 0),
-                int(item.get("pending") or 0),
-                int(item.get("error") or 0),
-                int(item.get("total") or 0),
+                item.get("label") or "—",
+                pass_n,
+                fail_n,
+                pass_n + fail_n,
+                item.get("rule") or "—",
             ]
-            rate_font = pass_font if rate >= 80 else (fail_font if rate < 50 else body_font)
-            rate_fill = pass_fill if rate >= 80 else (fail_fill if rate < 50 else None)
             for col, value in enumerate(values, start=1):
                 cell = overview.cell(row=r, column=col, value=value)
                 cell.border = thin
-                cell.alignment = center if col > 1 else Alignment(vertical="center", wrap_text=True)
-                cell.font = rate_font if col == 2 else body_font
-                if col == 2 and rate_fill is not None:
-                    cell.fill = rate_fill
-                elif r % 2 == 1:
-                    cell.fill = zebra_fill
-            overview.row_dimensions[r].height = 22
+                cell.alignment = (
+                    Alignment(vertical="top", wrap_text=True)
+                    if col in {1, 5}
+                    else center
+                )
+                if col == 2:
+                    cell.font = pass_font
+                    cell.fill = pass_fill
+                elif col == 3:
+                    cell.font = fail_font
+                    cell.fill = fail_fill
+                else:
+                    cell.font = body_font
+                    if r % 2 == 1:
+                        cell.fill = zebra_fill
+            overview.row_dimensions[r].height = 36
 
-    note_row = 22 + max(len(providers), 1)
+    note_row = 22 + max(len(assert_items), 1)
     overview.cell(
         row=note_row,
         column=1,
-        value="说明：概览对应报告页顶部摘要与图表；用例明细见「详细结果」工作表。",
+        value="说明：概览含结果分布与断言指标；用例明细见「详细结果」工作表。",
     )
     overview.cell(row=note_row, column=1).font = mute_font
     overview.merge_cells(start_row=note_row, start_column=1, end_row=note_row, end_column=5)
@@ -775,6 +783,17 @@ def _prompt_label(row: dict[str, Any], prompts: list[Any]) -> str:
     return "prompt"
 
 
+def _is_char_count_assert(assertion: dict[str, Any], reason: Any = None) -> bool:
+    value = assertion.get("value")
+    value_text = value if isinstance(value, str) else ""
+    reason_text = str(reason or "")
+    return (
+        "evalkit:char-count" in value_text
+        or "字符数" in reason_text
+        or ("const n = [...text].length" in value_text and "inRange" in value_text)
+    )
+
+
 def _display_assert_type(assertion: Any, reason: Any = None) -> str | None:
     """Map runtime-expanded asserts back to the visual type (e.g. javascript → word-count)."""
     if not isinstance(assertion, dict):
@@ -784,18 +803,59 @@ def _display_assert_type(assertion: Any, reason: Any = None) -> str | None:
         return None
     label = str(raw)
     lowered = label.lower()
-    value = assertion.get("value")
-    value_text = value if isinstance(value, str) else ""
-    reason_text = str(reason or "")
-    is_char_count = (
-        "evalkit:char-count" in value_text
-        or "字符数" in reason_text
-        or ("const n = [...text].length" in value_text and "inRange" in value_text)
-    )
-    if is_char_count and lowered in {"javascript", "js"}:
+    if _is_char_count_assert(assertion, reason) and lowered in {"javascript", "js"}:
         # Negated word-count expands to the same javascript type; reason still says 字符数.
         return "word-count"
     return label
+
+
+def _assert_rule_text(assertion: Any, display_type: str | None, reason: Any = None) -> str | None:
+    """Human-readable assertion rule / rubric for hover tooltips."""
+    if not isinstance(assertion, dict):
+        return None
+    value = assertion.get("value")
+    threshold = assertion.get("threshold")
+    lowered = str(display_type or assertion.get("type") or "").lower()
+
+    if lowered == "word-count" or (
+        isinstance(value, str) and _is_char_count_assert(assertion, reason)
+    ):
+        value_text = value if isinstance(value, str) else ""
+        min_m = re.search(r"const\s+min\s*=\s*([^;]+);", value_text)
+        max_m = re.search(r"const\s+max\s*=\s*([^;]+);", value_text)
+        min_v = (min_m.group(1).strip() if min_m else "").replace("null", "")
+        max_v = (max_m.group(1).strip() if max_m else "").replace("null", "")
+        if min_v and max_v:
+            return f"字符数要求：{min_v}–{max_v}"
+        if min_v:
+            return f"字符数要求：不少于 {min_v}"
+        if max_v:
+            return f"字符数要求：不超过 {max_v}"
+        return "字符数要求：见评分配置"
+
+    if isinstance(value, (dict, list)):
+        try:
+            text = json.dumps(value, ensure_ascii=False, indent=2)
+        except Exception:
+            text = str(value)
+    elif value is None:
+        text = ""
+    else:
+        text = str(value).strip()
+
+    # Skip raw JS bodies that aren't char-count (not useful as 细则).
+    if lowered in {"javascript", "js"} and text and "evalkit:char-count" not in text:
+        if "function" in text or "const " in text or "return " in text:
+            return None
+
+    if not text:
+        if threshold is not None:
+            return f"阈值：{threshold}"
+        return None
+
+    if threshold is not None and lowered in {"llm-rubric", "similar"}:
+        return f"{text}\n\n阈值：{threshold}"
+    return text
 
 
 def _assertion_details(grading: Any) -> list[dict[str, Any]]:
@@ -808,17 +868,85 @@ def _assertion_details(grading: Any) -> list[dict[str, Any]]:
             continue
         assertion = item.get("assertion") or {}
         reason = item.get("reason")
+        display_type = (
+            _display_assert_type(assertion, reason) if isinstance(assertion, dict) else None
+        )
+        metric = None
+        if isinstance(assertion, dict):
+            raw_metric = assertion.get("metric")
+            if raw_metric is not None and str(raw_metric).strip():
+                metric = str(raw_metric).strip()
         details.append(
             {
-                "type": _display_assert_type(assertion, reason)
-                if isinstance(assertion, dict)
-                else None,
+                "type": display_type,
                 "pass": item.get("pass"),
                 "score": item.get("score"),
                 "reason": reason,
+                "value": _assert_rule_text(assertion, display_type, reason)
+                if isinstance(assertion, dict)
+                else None,
+                "metric": metric,
             }
         )
     return details
+
+
+def assert_metric_buckets(table: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aggregate assertion pass/fail.
+
+    Prefer `metric` (评分项) as the chart category when present; otherwise fall
+    back to assertion type so legacy runs still group.
+    """
+    buckets: dict[str, dict[str, Any]] = {}
+    for row in table:
+        if row.get("pending"):
+            continue
+        for item in row.get("assertions") or []:
+            if not isinstance(item, dict):
+                continue
+            metric = str(item.get("metric") or "").strip()
+            type_key = str(item.get("type") or "unknown")
+            # Group key: scoring-item title when set, else assertion type.
+            bucket_key = f"metric::{metric}" if metric else f"type::{type_key}"
+            label = metric or _csv_assert_label(item.get("type"))
+            rule = str(item.get("value") or "").strip()
+            bucket = buckets.setdefault(
+                bucket_key,
+                {
+                    "key": bucket_key,
+                    "type": item.get("type"),
+                    "label": label,
+                    "pass": 0,
+                    "fail": 0,
+                    "rules": {},
+                },
+            )
+            if item.get("pass"):
+                bucket["pass"] += 1
+            else:
+                bucket["fail"] += 1
+            if rule:
+                rules: dict[str, dict[str, Any]] = bucket["rules"]
+                rs = rules.setdefault(rule, {"rule": rule, "pass": 0, "fail": 0})
+                if item.get("pass"):
+                    rs["pass"] += 1
+                else:
+                    rs["fail"] += 1
+    items: list[dict[str, Any]] = []
+    for bucket in buckets.values():
+        rules_map: dict[str, dict[str, Any]] = bucket.pop("rules") or {}
+        bucket["rules"] = sorted(
+            rules_map.values(),
+            key=lambda r: -(int(r["pass"]) + int(r["fail"])),
+        )
+        # Keep a short preview rule for HTML title / Excel cell.
+        top = bucket["rules"][0]["rule"] if bucket["rules"] else ""
+        bucket["rule"] = top
+        items.append(bucket)
+    return sorted(
+        items,
+        key=lambda b: (-(int(b["pass"]) + int(b["fail"])), str(b["label"])),
+    )
 
 
 def _group_stats(table: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:

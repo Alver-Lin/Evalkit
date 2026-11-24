@@ -24,6 +24,7 @@ import {
 import {
   applyResponseExtract,
   buildHttpProbeBody,
+  assertShowsMetric,
   createVisualAssert,
   DEFAULT_AI_EXTRACT_HINT,
   defaultResponseExtract,
@@ -64,7 +65,7 @@ import {
 import {
   buildExportedTestsExcelXml,
   draftsToVisualTests,
-  parseImportedTests,
+  parseImportedTestFile,
   sampleAssertYaml,
 } from '@/utils/importTests'
 
@@ -737,9 +738,11 @@ const beforeTestImportUpload: UploadProps['beforeUpload'] = (file) => {
     name.endsWith('.csv') ||
     name.endsWith('.json') ||
     name.endsWith('.yaml') ||
-    name.endsWith('.yml')
+    name.endsWith('.yml') ||
+    name.endsWith('.xls') ||
+    name.endsWith('.xlsx')
   if (!ok) {
-    message.error('仅支持 .csv / .json / .yaml')
+    message.error('仅支持 .csv / .json / .yaml / .xls / .xlsx')
     return Upload.LIST_IGNORE
   }
   testImportFileList.value = [
@@ -777,8 +780,7 @@ async function confirmTestImport() {
 
   testImportSubmitting.value = true
   try {
-    const text = await file.text()
-    const drafts = parseImportedTests(text, file.name, graders.value)
+    const drafts = await parseImportedTestFile(file, graders.value)
     const imported = draftsToVisualTests(drafts, promptVarNames.value)
     if (!imported.length) {
       message.warning('未解析到有效用例')
@@ -834,11 +836,16 @@ function openTestDetail(index: number) {
   detailOpen.value = true
 }
 
-function testVarsPreview(varsText: string) {
+function testVarsFull(varsText: string) {
   const obj = parseVarsObject(varsText)
   const keys = promptVarNames.value.length ? promptVarNames.value : Object.keys(obj)
-  if (!keys.length) return '—'
-  const text = keys.map((key) => `${key}: ${obj[key] || '—'}`).join(', ')
+  if (!keys.length) return ''
+  return keys.map((key) => `${key}: ${obj[key] || '—'}`).join(', ')
+}
+
+function testVarsPreview(varsText: string) {
+  const text = testVarsFull(varsText)
+  if (!text) return '—'
   return text.length > 48 ? `${text.slice(0, 48)}…` : text
 }
 
@@ -853,7 +860,9 @@ watch(
 function assertTypeLabel(assert: VisualAssert) {
   const meta = getAssertMeta(assert.type)
   const base = meta.label || assert.type || 'assert'
-  return assert.negated ? `非·${base}` : base
+  const withPolarity = assert.negated ? `非·${base}` : base
+  const metric = String(assert.metric || '').trim()
+  return metric ? `${withPolarity}·${metric}` : withPolarity
 }
 
 function testAssertPreview(asserts: VisualAssert[]) {
@@ -884,6 +893,10 @@ function showsGrader(assert: VisualAssert) {
   return assertNeedsGrader(assert.type)
 }
 
+function showsMetric(assert: VisualAssert) {
+  return assertShowsMetric(assert.type)
+}
+
 function assertValueTooltip(assert: VisualAssert) {
   const text = String(assert.value ?? '').trim()
   return text || undefined
@@ -907,6 +920,7 @@ function onAssertTypeChange(assert: VisualAssert, type: string | undefined) {
   assert.threshold = meta.hasThreshold ? (meta.defaultThreshold ?? null) : null
   assert.min = meta.hasRange ? (meta.defaultMin ?? null) : null
   assert.max = meta.hasRange ? (meta.defaultMax ?? null) : null
+  assert.metric = assertShowsMetric(next) ? String(assert.metric || '') : null
   if (meta.needsGrader) {
     const stillValid =
       assert.graderId != null && graders.value.some((g) => g.id === assert.graderId && g.provider_id.trim())
@@ -932,7 +946,13 @@ function assertRowClass(assert: VisualAssert) {
 }
 
 function assertHasMetrics(assert: VisualAssert) {
-  return showsValue(assert) || showsRange(assert) || showsThreshold(assert) || showsGrader(assert)
+  return (
+    showsValue(assert) ||
+    showsRange(assert) ||
+    showsThreshold(assert) ||
+    showsGrader(assert) ||
+    showsMetric(assert)
+  )
 }
 
 function addAssert(testIndex: number) {
@@ -1559,10 +1579,19 @@ function removeDefaultAssert(index: number) {
                 :tree-data="assertTreeData"
                 show-search
                 tree-node-filter-prop="title"
-                :dropdown-style="{ maxHeight: '320px', overflow: 'auto' }"
+                :dropdown-match-select-width="false"
+                popup-class-name="assert-type-dropdown"
+                :dropdown-style="{ maxHeight: '320px', overflow: 'auto', minWidth: '240px' }"
                 placeholder="选择断言类型"
                 allow-clear
                 @update:value="(value: string) => onAssertTypeChange(assertItem, value)"
+              />
+              <a-input
+                v-if="showsMetric(assertItem)"
+                v-model:value="assertItem.metric"
+                class="assert-metric"
+                placeholder="评分项"
+                allow-clear
               />
               <a-tooltip
                 v-if="showsValue(assertItem)"
@@ -1671,11 +1700,8 @@ function removeDefaultAssert(index: number) {
                 <template #default="{ record }">
                   <a-tooltip
                     placement="topLeft"
-                    :title="
-                      testVarsPreview(model.tests[record.index].varsText) === '—'
-                        ? undefined
-                        : testVarsPreview(model.tests[record.index].varsText)
-                    "
+                    overlay-class-name="test-table-tooltip"
+                    :title="testVarsFull(model.tests[record.index].varsText) || undefined"
                   >
                     <span class="mono tiny cell-ellipsis">
                       {{ testVarsPreview(model.tests[record.index].varsText) }}
@@ -1687,6 +1713,7 @@ function removeDefaultAssert(index: number) {
                 <template #default="{ record }">
                   <a-tooltip
                     placement="topLeft"
+                    overlay-class-name="test-table-tooltip"
                     :title="
                       testAssertPreview(model.tests[record.index].asserts) === '—'
                         ? undefined
@@ -1727,7 +1754,7 @@ function removeDefaultAssert(index: number) {
         v-model:open="detailOpen"
         :title="detailTest ? `编辑 test${detailIndex + 1}` : '编辑测试用例'"
         placement="right"
-        :width="720"
+        :width="880"
         destroy-on-close
         root-class-name="test-detail-drawer"
       >
@@ -1837,14 +1864,28 @@ function removeDefaultAssert(index: number) {
                     :tree-data="assertTreeData"
                     show-search
                     tree-node-filter-prop="title"
-                    :dropdown-style="{ maxHeight: '320px', overflow: 'auto' }"
+                    :dropdown-match-select-width="false"
+                    popup-class-name="assert-type-dropdown"
+                    :dropdown-style="{ maxHeight: '320px', overflow: 'auto', minWidth: '240px' }"
                     placeholder="选择断言类型"
                     allow-clear
                     @update:value="(value: string) => onAssertTypeChange(assertItem, value)"
                   />
                 </div>
                 <div class="detail-assert-cell metrics" role="cell">
-                  <div v-if="assertHasMetrics(assertItem)" class="assert-metrics">
+                  <div
+                    v-if="assertHasMetrics(assertItem)"
+                    class="assert-metrics"
+                    :class="{ 'is-rubric': showsMetric(assertItem) }"
+                  >
+                    <a-input
+                      v-if="showsMetric(assertItem)"
+                      size="small"
+                      v-model:value="assertItem.metric"
+                      class="assert-metric"
+                      placeholder="评分项"
+                      allow-clear
+                    />
                     <a-tooltip
                       v-if="showsValue(assertItem)"
                       class="assert-value assert-value-tip"
@@ -1944,7 +1985,7 @@ function removeDefaultAssert(index: number) {
           name="tests"
           :multiple="false"
           :max-count="1"
-          accept=".csv,.json,.yaml,.yml"
+          accept=".csv,.json,.yaml,.yml,.xls,.xlsx"
           :before-upload="beforeTestImportUpload"
           @remove="onTestImportRemove"
         >
@@ -1952,7 +1993,7 @@ function removeDefaultAssert(index: number) {
             <CloudUploadOutlined />
           </p>
           <p class="ant-upload-text">点击选择或拖拽文件到此处</p>
-          <p class="ant-upload-hint">支持 .csv / .json / .yaml</p>
+          <p class="ant-upload-hint">支持 .csv / .json / .yaml / .xls / .xlsx</p>
         </a-upload-dragger>
 
         <template #footer>
@@ -2336,7 +2377,7 @@ function removeDefaultAssert(index: number) {
 .detail-assert-head,
 .detail-assert-row {
   display: grid;
-  grid-template-columns: 72px minmax(132px, 168px) minmax(0, 1fr) 36px;
+  grid-template-columns: 78px 148px minmax(0, 1fr) 36px;
   align-items: center;
 }
 
@@ -2361,7 +2402,7 @@ function removeDefaultAssert(index: number) {
 
 .detail-assert-cell {
   min-width: 0;
-  padding: 6px 10px;
+  padding: 8px 10px;
 }
 
 .detail-assert-cell.action {
@@ -2376,18 +2417,68 @@ function removeDefaultAssert(index: number) {
   width: 100%;
 }
 
+.assert-type :deep(.ant-select-selection-item) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-assert-cell .assert-polarity :deep(.ant-select-selector) {
+  padding-inline: 8px 26px !important;
+}
+
+.detail-assert-cell .assert-polarity :deep(.ant-select-selection-item) {
+  overflow: visible;
+  text-overflow: clip;
+  margin-inline-end: 0 !important;
+}
+
 .assert-metrics {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  width: 100%;
+}
+
+.assert-metrics.is-rubric {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.assert-metrics.is-rubric .assert-metric {
+  flex: 0 0 108px;
+  width: 108px;
+  max-width: 108px;
+  min-width: 108px;
+}
+
+.assert-metrics.is-rubric .assert-value-tip,
+.assert-metrics.is-rubric .assert-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.assert-metrics.is-rubric .assert-threshold {
+  flex: 0 0 64px;
+  width: 64px;
+}
+
+.assert-metrics.is-rubric .assert-grader {
+  flex: 0 0 118px;
+  width: 118px;
+  max-width: 118px;
+  min-width: 118px;
 }
 
 .assert-metrics .assert-value,
 .assert-metrics .assert-value-tip {
-  flex: 1 1 140px;
-  min-width: 120px;
+  flex: 1 1 160px;
+  min-width: 140px;
 }
 
 .assert-metrics .assert-range {
@@ -2395,15 +2486,21 @@ function removeDefaultAssert(index: number) {
   width: 72px;
 }
 
+.assert-metrics .assert-metric {
+  flex: 0 1 120px;
+  min-width: 96px;
+  max-width: 160px;
+}
+
 .assert-metrics .assert-threshold {
-  flex: 0 0 80px;
-  width: 80px;
+  flex: 0 0 72px;
+  width: 72px;
 }
 
 .assert-metrics .assert-grader {
-  flex: 0 1 120px;
-  min-width: 100px;
-  max-width: 140px;
+  flex: 0 1 140px;
+  min-width: 120px;
+  max-width: 180px;
 }
 
 .assert-metrics-empty {
@@ -3152,7 +3249,7 @@ function removeDefaultAssert(index: number) {
 
 .assert-row {
   /* polarity | type | flexible fields... | delete — first two cols stay aligned */
-  --assert-polarity-w: 64px;
+  --assert-polarity-w: 72px;
   --assert-type-w: 160px;
   display: grid;
   gap: 8px;
@@ -3192,12 +3289,23 @@ function removeDefaultAssert(index: number) {
   min-width: 0;
 }
 
+.assert-polarity :deep(.ant-select-selector) {
+  padding-inline: 8px 26px !important;
+}
+
+.assert-polarity :deep(.ant-select-selection-item) {
+  overflow: visible;
+  text-overflow: clip;
+  margin-inline-end: 0 !important;
+}
+
 .assert-type {
   width: 100%;
   min-width: 0;
 }
 
 .assert-value,
+.assert-metric,
 .assert-threshold,
 .assert-range,
 .assert-grader {
@@ -3265,7 +3373,7 @@ function removeDefaultAssert(index: number) {
   .assert-row-both,
   .assert-row-both-grader,
   .assert-row-none {
-    grid-template-columns: 64px minmax(0, 1fr) 28px;
+    grid-template-columns: 72px minmax(0, 1fr) 28px;
   }
 
   .assert-row .assert-polarity {
@@ -3605,5 +3713,27 @@ function removeDefaultAssert(index: number) {
   overflow-wrap: anywhere;
   text-align: left;
   line-height: 1.5;
+}
+
+.test-table-tooltip {
+  max-width: min(560px, 80vw);
+}
+
+.test-table-tooltip .ant-tooltip-inner {
+  max-width: min(560px, 80vw);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.assert-type-dropdown {
+  min-width: 240px !important;
+}
+
+.assert-type-dropdown .ant-select-tree-title,
+.assert-type-dropdown .ant-select-tree-node-content-wrapper {
+  white-space: nowrap;
 }
 </style>

@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from app.models.schemas import EvalRunSummary
+from app.services.report_builder import assert_metric_buckets
 
 _ASSERT_LABELS: dict[str, str] = {
     "similar": "语义相似",
@@ -195,9 +196,15 @@ def _render_result_cell(row: dict[str, Any] | None) -> str:
     assert_html = []
     for a in asserts:
         a_ok = bool(a.get("pass"))
+        rule = str(a.get("value") or "").strip()
+        tip_attr = f' title="{_esc(rule)}"' if rule else ""
+        tip_class = " has-tip" if rule else ""
+        type_label = _assert_label(a.get("type"))
+        metric = str(a.get("metric") or "").strip()
+        head = f"{type_label}·{metric}" if metric else type_label
         assert_html.append(
-            f"<div class='assert {'ok' if a_ok else 'fail'}'>"
-            f"<strong>{_esc(_assert_label(a.get('type')))}</strong>"
+            f"<div class='assert {'ok' if a_ok else 'fail'}{tip_class}'{tip_attr}>"
+            f"<strong>{_esc(head)}</strong>"
             f"<span>{_esc(a.get('reason') or ('通过' if a_ok else '未通过'))}</span>"
             f"</div>"
         )
@@ -229,7 +236,6 @@ def _render_result_cell(row: dict[str, Any] | None) -> str:
 def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> str:
     stats = view.get("summary") or {}
     table = view.get("table") or []
-    by_provider = view.get("by_provider") or []
     pass_count = int(stats.get("pass_count") or summary.pass_count or 0)
     fail_count = int(stats.get("fail_count") or summary.fail_count or 0)
     error_count = int(stats.get("error_count") or summary.error_count or 0)
@@ -252,21 +258,42 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
         else "#e5e7eb"
     )
 
-    provider_bars = []
-    for item in by_provider:
-        name = str(item.get("name") or "unknown")
-        rate = float(item.get("pass_rate") or 0)
-        provider_bars.append(
+    assert_metrics = assert_metric_buckets(table)
+    max_assert_count = max(
+        (int(i.get("pass") or 0) + int(i.get("fail") or 0) for i in assert_metrics),
+        default=0,
+    ) or 1
+    # HTML export keeps the outer metric layer only (no tip / 细则 drill-down).
+    assert_bars = []
+    for item in assert_metrics:
+        label = str(item.get("label") or "断言")
+        pass_n = int(item.get("pass") or 0)
+        fail_n = int(item.get("fail") or 0)
+        pass_h = max(8, round((pass_n / max_assert_count) * 120)) if pass_n else 0
+        fail_h = max(8, round((fail_n / max_assert_count) * 120)) if fail_n else 0
+        assert_bars.append(
             f"""
-            <div class="bar-row">
-              <div class="bar-label" title="{_esc(name)}">{_esc(name)}</div>
-              <div class="bar-track"><div class="bar-fill" style="width:{rate:.2f}%"></div></div>
-              <div class="bar-pct mono">{rate:.2f}%</div>
+            <div class="assert-metric" title="{_esc(label)}：通过 {pass_n} / 失败 {fail_n}">
+              <div class="assert-metric-bars">
+                <div class="assert-metric-col">
+                  <span class="assert-metric-count pass mono">{pass_n}</span>
+                  <div class="assert-metric-bar pass" style="height:{pass_h}px"></div>
+                </div>
+                <div class="assert-metric-col">
+                  <span class="assert-metric-count fail mono">{fail_n}</span>
+                  <div class="assert-metric-bar fail" style="height:{fail_h}px"></div>
+                </div>
+              </div>
+              <div class="assert-metric-label">{_esc(label)}</div>
             </div>
             """
         )
-    if not provider_bars:
-        provider_bars.append('<div class="empty">暂无供应商数据</div>')
+    if not assert_bars:
+        assert_bars.append('<div class="empty">暂无断言数据</div>')
+    assert_chart_html = (
+        f'<div class="assert-metric-legend"><i class="pass"></i>通过 <i class="fail"></i>失败</div>'
+        f'<div class="assert-metric-chart">{"".join(assert_bars)}</div>'
+    )
 
     matrix_cols, matrix_rows = _build_matrix(table)
 
@@ -500,35 +527,71 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
       border-radius: 2px;
       margin-right: 8px;
     }}
-    .bar-row {{
-      display: grid;
-      grid-template-columns: minmax(80px, 140px) 1fr 64px;
-      gap: 10px;
+    .assert-metric-legend {{
+      display: flex;
+      gap: 14px;
       align-items: center;
-      margin-bottom: 10px;
-    }}
-    .bar-label {{
+      justify-content: flex-end;
       font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }}
+    .assert-metric-legend i {{
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }}
+    .assert-metric-legend i.pass {{ background: #3d8b66; }}
+    .assert-metric-legend i.fail {{ background: #c45c5c; }}
+    .assert-metric-chart {{
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+      overflow-x: auto;
+      padding: 8px 4px 4px;
+      min-height: 180px;
+    }}
+    .assert-metric {{
+      flex: 0 0 auto;
+      width: 92px;
+      text-align: center;
+    }}
+    .assert-metric-bars {{
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      align-items: flex-end;
+      height: 132px;
+      margin-bottom: 8px;
+    }}
+    .assert-metric-col {{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      width: 28px;
+    }}
+    .assert-metric-count {{
+      font-size: 11px;
+      color: var(--muted);
+    }}
+    .assert-metric-count.pass {{ color: #15803d; }}
+    .assert-metric-count.fail {{ color: #b91c1c; }}
+    .assert-metric-bar {{
+      width: 22px;
+      border-radius: 4px 4px 0 0;
+      min-height: 0;
+    }}
+    .assert-metric-bar.pass {{ background: #3d8b66; }}
+    .assert-metric-bar.fail {{ background: #c45c5c; }}
+    .assert-metric-label {{
+      font-size: 11px;
       color: var(--secondary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }}
-    .bar-track {{
-      height: 10px;
-      border-radius: 999px;
-      background: #eef2f7;
-      overflow: hidden;
-    }}
-    .bar-fill {{
-      height: 100%;
-      background: linear-gradient(90deg, #5f8f88, #0f766e);
-      border-radius: 999px;
-    }}
-    .bar-pct {{
-      font-size: 12px;
-      color: var(--accent-ink);
-      text-align: right;
+      line-height: 1.35;
+      word-break: break-word;
     }}
     .filter-bar {{
       display: flex;
@@ -692,6 +755,14 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
       gap: 8px;
       font-size: 12px;
       margin-bottom: 6px;
+      border-radius: 6px;
+      padding: 4px 6px;
+    }}
+    .assert.has-tip {{
+      cursor: help;
+    }}
+    .assert.has-tip:hover {{
+      background: rgba(15, 118, 110, 0.06);
     }}
     .assert.ok strong {{ color: var(--ok); }}
     .assert.fail strong {{ color: var(--fail); }}
@@ -794,8 +865,8 @@ def build_evalkit_html_report(summary: EvalRunSummary, view: dict[str, Any]) -> 
         </div>
       </section>
       <section class="panel">
-        <div class="section-title">供应商通过率</div>
-        {''.join(provider_bars)}
+        <div class="section-title">断言指标</div>
+        {assert_chart_html}
       </section>
     </div>
 

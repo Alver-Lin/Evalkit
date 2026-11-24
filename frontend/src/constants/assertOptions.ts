@@ -32,7 +32,7 @@ export const assertCategories: Array<{
 }> = [
   {
     key: 'model',
-    label: '模型评分',
+    label: '模型评分规则',
     options: [
       {
         value: 'similar',

@@ -26,6 +26,11 @@ export interface VisualAssert {
   max?: number | null
   /** Id of a grader from 模型评测配置 (llm-rubric / similar). */
   graderId?: string | null
+  /**
+   * Short title for llm-rubric (评分项). Serialized as promptfoo `metric`
+   * for report charts / grouping.
+   */
+  metric?: string | null
   /** When true, serialize as `not-<type>` in YAML. */
   negated?: boolean
 }
@@ -46,8 +51,16 @@ export function createVisualAssert(type = 'contains', graderId: string | null = 
     min: meta.hasRange ? (meta.defaultMin ?? null) : null,
     max: meta.hasRange ? (meta.defaultMax ?? null) : null,
     graderId: meta.needsGrader ? graderId : null,
+    metric: baseType === 'llm-rubric' ? '' : null,
     negated: false,
   }
+}
+
+/** Whether this assert type shows the 评分项 (metric) title field. */
+export function assertShowsMetric(type: string | undefined | null): boolean {
+  const raw = (type || '').trim().toLowerCase()
+  const base = raw.startsWith('not-') ? raw.slice(4) : raw
+  return base === 'llm-rubric'
 }
 
 /** Convert a grader meta record into VisualProvider for YAML serialization. */
@@ -301,6 +314,11 @@ export function serializeOneAssert(
     const grader = findGraderById(graders, assert.graderId)
     const yamlProvider = grader ? toProviderYaml(graderMetaToVisualProvider(grader)) : null
     if (yamlProvider) out.provider = yamlProvider
+  }
+  // promptfoo `metric` — short title for llm-rubric, used in report charts.
+  if (assertShowsMetric(type)) {
+    const metric = String(assert.metric ?? '').trim()
+    if (metric) out.metric = metric
   }
   return out
 }
@@ -1551,6 +1569,7 @@ export function normalizeAssert(item: unknown, graders: GraderMeta[] = []): Visu
           min: parsed.min,
           max: parsed.max,
           graderId: null,
+          metric: null,
           negated: /const pass = !inRange/.test(value) ? true : negated,
         }
       }
@@ -1576,6 +1595,14 @@ export function normalizeAssert(item: unknown, graders: GraderMeta[] = []): Visu
       }
     }
 
+    const metricRaw = obj.metric ?? obj.title ?? obj.name
+    const metric =
+      assertShowsMetric(type) && metricRaw != null && String(metricRaw).trim()
+        ? String(metricRaw).trim()
+        : assertShowsMetric(type)
+          ? ''
+          : null
+
     return {
       type,
       value: assertShowsRange(type) ? '' : normalizedValue,
@@ -1583,6 +1610,7 @@ export function normalizeAssert(item: unknown, graders: GraderMeta[] = []): Visu
       min: assertShowsRange(type) ? min : null,
       max: assertShowsRange(type) ? max : null,
       graderId: assertNeedsGrader(type) ? matchGraderId(obj.provider, graders) : null,
+      metric,
       negated,
     }
   }

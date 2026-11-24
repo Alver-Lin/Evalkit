@@ -53,6 +53,10 @@ export interface AssertionDetail {
   pass?: boolean
   score?: number
   reason?: string
+  /** Human-readable assertion rule / rubric for hover tooltips. */
+  value?: string | null
+  /** Short title from assert.metric (评分项), used for chart grouping. */
+  metric?: string | null
 }
 
 export interface ReportRow {

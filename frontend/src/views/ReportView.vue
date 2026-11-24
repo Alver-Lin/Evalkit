@@ -455,24 +455,80 @@ watch(draftProvider, () => {
   draftPrompt.value = pruneSelection(draftPrompt.value, allowed)
 })
 
+type FailAssertBucket = { count: number; name: string; value: number; color: string }
+
+/** Redder as assertion-fail count rises (light → deep). */
+function failAssertRed(count: number, minCount: number, maxCount: number) {
+  const stops = ['#f3c6c6', '#e59a9a', '#d47171', '#c45c5c', '#a63f3f', '#862d2d', '#6b1f1f']
+  if (maxCount <= minCount) return stops[Math.min(3, stops.length - 1)]
+  const t = Math.max(0, Math.min(1, (count - minCount) / (maxCount - minCount)))
+  const idx = Math.round(t * (stops.length - 1))
+  return stops[idx]
+}
+
+const pieDrillFail = ref(false)
+
+/** Failed cases grouped by how many assertions failed. */
+const failAssertBuckets = computed((): FailAssertBucket[] => {
+  const map = new Map<number, number>()
+  for (const row of report.value?.table || []) {
+    if (row.pending || row.error || row.success) continue
+    const failedAsserts = (row.assertions || []).filter((a) => !a.pass).length
+    const count = failedAsserts > 0 ? failedAsserts : 1
+    map.set(count, (map.get(count) || 0) + 1)
+  }
+  const entries = Array.from(map.entries()).sort((a, b) => a[0] - b[0])
+  if (!entries.length) return []
+  const minCount = entries[0][0]
+  const maxCount = entries[entries.length - 1][0]
+  return entries.map(([count, value]) => ({
+    count,
+    value,
+    name: `${count} 项断言失败`,
+    color: failAssertRed(count, minCount, maxCount),
+  }))
+})
+
+function onPieChartClick(params: { componentType?: string; name?: string; seriesName?: string }) {
+  if (params?.componentType !== 'series') return
+  if (pieDrillFail.value) return
+  if (params.name !== '失败') return
+  if (!failAssertBuckets.value.length) return
+  pieDrillFail.value = true
+}
+
+function exitPieDrill() {
+  pieDrillFail.value = false
+}
+
 const pieOption = computed(() => {
   const s = report.value?.summary
   if (!s) return {}
-  const stats = [
+
+  const drilled = pieDrillFail.value
+  const failBuckets = failAssertBuckets.value
+  const overviewStats = [
     { name: '通过', value: s.pass_count ?? 0, color: '#3d8b66' },
     { name: '失败', value: s.fail_count ?? 0, color: '#c45c5c' },
     { name: '错误', value: s.error_count ?? 0, color: '#b0893d' },
     { name: '未评', value: s.pending_count ?? 0, color: '#94a3b8' },
   ]
+
+  const stats = drilled
+    ? failBuckets.map((b) => ({ name: b.name, value: b.value, color: b.color }))
+    : overviewStats
+
   const graded = (s.pass_count ?? 0) + (s.fail_count ?? 0)
   const total = stats.reduce((sum, item) => sum + item.value, 0)
   const passRate = graded ? Math.round(((s.pass_count ?? 0) / graded) * 1000) / 10 : 0
+  const failTotal = failBuckets.reduce((sum, item) => sum + item.value, 0)
   const pieData = stats
     .filter((item) => item.value > 0)
     .map((item) => ({
       name: item.name,
       value: item.value,
       itemStyle: { color: item.color },
+      cursor: !drilled && item.name === '失败' ? 'pointer' : 'default',
     }))
   // Keep a full ring when every status is zero.
   const seriesData =
@@ -480,17 +536,32 @@ const pieOption = computed(() => {
       ? pieData
       : [{ name: '暂无数据', value: 1, itemStyle: { color: '#d7dce5' }, tooltip: { show: false } }]
 
+  const titleText = drilled
+    ? failTotal
+      ? `${failTotal}`
+      : '—'
+    : total
+      ? `${passRate}%`
+      : '—'
+  const titleSub = drilled
+    ? failTotal
+      ? `失败 ${failTotal} 条`
+      : '暂无失败'
+    : total
+      ? `共 ${total} 条`
+      : '暂无结果'
+
   return {
     animationDuration: 400,
     title: {
-      text: total ? `${passRate}%` : '—',
-      subtext: total ? `共 ${total} 条` : '暂无结果',
+      text: titleText,
+      subtext: titleSub,
       left: 'center',
       top: '34%',
       textStyle: {
-        fontSize: 26,
+        fontSize: drilled ? 24 : 26,
         fontWeight: 600,
-        color: '#111827',
+        color: drilled ? '#8f2f2f' : '#111827',
         fontFamily: 'IBM Plex Sans, sans-serif',
         lineHeight: 30,
       },
@@ -513,7 +584,11 @@ const pieOption = computed(() => {
       extraCssText: 'box-shadow: 0 4px 14px rgba(17,24,39,0.08); border-radius: 8px;',
       formatter: (p: { name: string; value: number; percent: number; color: string }) => {
         if (p.name === '暂无数据') return ''
-        return `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${p.color};margin-right:6px;"></span>${p.name}<br/><span style="margin-left:14px">${p.value} 条 · ${p.percent}%</span>`
+        const hint =
+          !drilled && p.name === '失败' && failBuckets.length
+            ? `<div style="margin-top:6px;color:#94a3b8;font-size:11px">点击查看断言失败分布</div>`
+            : ''
+        return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;vertical-align:middle;"></span>${p.name}<br/><span style="margin-left:14px">${p.value} 条 · ${p.percent}%</span>${hint}`
       },
     },
     legend: {
@@ -522,8 +597,8 @@ const pieOption = computed(() => {
       icon: 'circle',
       itemWidth: 8,
       itemHeight: 8,
-      itemGap: 18,
-      textStyle: { color: '#4b5565', fontSize: 12, fontFamily: 'IBM Plex Sans, sans-serif' },
+      itemGap: drilled ? 12 : 18,
+      textStyle: { color: '#4b5565', fontSize: drilled ? 11 : 12, fontFamily: 'IBM Plex Sans, sans-serif' },
       data: stats.map((item) => ({
         name: item.name,
         itemStyle: { color: item.color },
@@ -537,7 +612,7 @@ const pieOption = computed(() => {
     },
     series: [
       {
-        name: '结果分布',
+        name: drilled ? '失败明细' : '结果分布',
         type: 'pie',
         radius: ['54%', '74%'],
         center: ['50%', '44%'],
@@ -563,32 +638,292 @@ const pieOption = computed(() => {
   }
 })
 
+type AssertRuleStat = { rule: string; pass: number; fail: number }
+type AssertMetricItem = {
+  key: string
+  label: string
+  pass: number
+  fail: number
+  /** Per-rule breakdown for tooltip / chart drill-down. */
+  rules: AssertRuleStat[]
+}
+type AssertBarItem = {
+  key: string
+  label: string
+  fullLabel: string
+  pass: number
+  fail: number
+  rules?: AssertRuleStat[]
+}
+
+function assertionBucketOf(a: { type?: string | null; metric?: string | null }) {
+  const metric = String(a.metric || '').trim()
+  if (metric) return { key: `metric::${metric}`, label: metric }
+  const typeKey = String(a.type || 'unknown')
+  return { key: `type::${typeKey}`, label: getAssertDisplayLabel(a.type) }
+}
+
+function shortAxisLabel(text: string, maxLen = 10) {
+  const compact = String(text || '').replace(/\s+/g, '')
+  if (!compact) return '—'
+  const chars = Array.from(compact)
+  return chars.length > maxLen ? `${chars.slice(0, maxLen).join('')}…` : chars.join('')
+}
+
+function escapeTooltipHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+const assertMetrics = computed((): AssertMetricItem[] => {
+  const rows = report.value?.table || []
+  // Prefer 评分项 (metric) as the x-axis category; fall back to assertion type.
+  const buckets = new Map<
+    string,
+    { key: string; label: string; pass: number; fail: number; rules: Map<string, AssertRuleStat> }
+  >()
+  for (const row of rows) {
+    if (row.pending) continue
+    for (const a of row.assertions || []) {
+      const { key: bucketKey, label } = assertionBucketOf(a)
+      const rule = String(a.value || '').trim()
+      let item = buckets.get(bucketKey)
+      if (!item) {
+        item = {
+          key: bucketKey,
+          label,
+          pass: 0,
+          fail: 0,
+          rules: new Map(),
+        }
+        buckets.set(bucketKey, item)
+      }
+      if (a.pass) item.pass += 1
+      else item.fail += 1
+      if (rule) {
+        let rs = item.rules.get(rule)
+        if (!rs) {
+          rs = { rule, pass: 0, fail: 0 }
+          item.rules.set(rule, rs)
+        }
+        if (a.pass) rs.pass += 1
+        else rs.fail += 1
+      }
+    }
+  }
+  return Array.from(buckets.values())
+    .map((item) => ({
+      key: item.key,
+      label: item.label,
+      pass: item.pass,
+      fail: item.fail,
+      rules: Array.from(item.rules.values()).sort((a, b) => b.fail + b.pass - (a.fail + a.pass)),
+    }))
+    .sort((a, b) => {
+      const ta = a.pass + a.fail
+      const tb = b.pass + b.fail
+      if (tb !== ta) return tb - ta
+      return a.label.localeCompare(b.label, 'zh')
+    })
+})
+
+/** null = overview of metrics; otherwise drill into that metric's 细则. */
+const assertDrillKey = ref<string | null>(null)
+
+const assertDrillMetric = computed(() => {
+  if (!assertDrillKey.value) return null
+  return assertMetrics.value.find((item) => item.key === assertDrillKey.value) || null
+})
+
+const assertBarItems = computed((): AssertBarItem[] => {
+  const drilled = assertDrillMetric.value
+  if (drilled) {
+    const rules = drilled.rules || []
+    if (!rules.length) {
+      return [
+        {
+          key: drilled.key,
+          label: drilled.label,
+          fullLabel: drilled.label,
+          pass: drilled.pass,
+          fail: drilled.fail,
+        },
+      ]
+    }
+    return rules.map((r, index) => ({
+      key: `rule::${index}`,
+      label: shortAxisLabel(r.rule, 8),
+      fullLabel: r.rule || '—',
+      pass: r.pass,
+      fail: r.fail,
+    }))
+  }
+  return assertMetrics.value.map((item) => ({
+    key: item.key,
+    label: item.label,
+    fullLabel: item.label,
+    pass: item.pass,
+    fail: item.fail,
+    rules: item.rules,
+  }))
+})
+
+watch(assertMetrics, (items) => {
+  if (assertDrillKey.value && !items.some((item) => item.key === assertDrillKey.value)) {
+    assertDrillKey.value = null
+  }
+})
+
+function onAssertChartClick(params: {
+  componentType?: string
+  dataIndex?: number
+}) {
+  if (params?.componentType !== 'series') return
+  // Already drilled into 细则 — stay on this chart level.
+  if (assertDrillKey.value) return
+  const item = assertMetrics.value[params.dataIndex ?? -1]
+  if (!item?.rules?.length) return
+  assertDrillKey.value = item.key
+}
+
+function exitAssertDrill() {
+  assertDrillKey.value = null
+}
+
 const barOption = computed(() => {
-  const items = report.value?.by_provider || []
+  const items = assertBarItems.value
+  const drilled = Boolean(assertDrillMetric.value)
+  const labels = items.map((i) => i.label)
+  const rotate = drilled
+    ? labels.length > 3
+      ? 36
+      : labels.length > 1
+        ? 20
+        : 0
+    : labels.length > 4
+      ? 28
+      : labels.length > 2
+        ? 16
+        : 0
   return {
+    animationDuration: 400,
+    color: ['#3d8b66', '#c45c5c'],
+    legend: {
+      top: 0,
+      right: 8,
+      icon: 'circle',
+      itemWidth: 8,
+      itemHeight: 8,
+      textStyle: { color: '#4b5565', fontSize: 12 },
+    },
     tooltip: {
       trigger: 'axis',
-      valueFormatter: (value: number | string) => `${value}%`,
+      confine: false,
+      appendTo: 'body',
+      backgroundColor: '#fff',
+      borderColor: 'rgba(17,24,39,0.08)',
+      borderWidth: 1,
+      padding: [10, 12],
+      textStyle: { color: '#4b5565', fontSize: 12 },
+      extraCssText:
+        'box-shadow: 0 4px 14px rgba(17,24,39,0.08); border-radius: 8px; min-width: 240px; max-width: 440px; z-index: 80;',
+      formatter: (
+        params: Array<{
+          axisValue: string
+          seriesName: string
+          value: number
+          color: string
+          dataIndex: number
+        }>,
+      ) => {
+        if (!params?.length) return ''
+        const item = items[params[0].dataIndex]
+        const dot = (color: string) =>
+          `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>`
+        const title = escapeTooltipHtml(item?.fullLabel || item?.label || params[0].axisValue)
+        const rows = params
+          .map(
+            (p) =>
+              `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">${dot(p.color)}<span>${escapeTooltipHtml(p.seriesName)}：${p.value}</span></div>`,
+          )
+          .join('')
+        if (drilled) {
+          return `<div style="font-weight:600;margin-bottom:4px;white-space:pre-wrap;word-break:break-word">${title}</div>${rows}`
+        }
+        const ruleLines = (item?.rules || [])
+          .slice(0, 4)
+          .map((r) => {
+            const short = shortAxisLabel(r.rule, 16)
+            return `<div style="display:flex;align-items:center;gap:10px;margin-top:5px;color:#6b7487">
+              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${escapeTooltipHtml(short)}</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums;color:#4b5565">
+                <span style="display:inline-flex;align-items:center;gap:4px;min-width:28px">${dot('#3d8b66')}<span>${r.pass}</span></span>
+                <span style="display:inline-flex;align-items:center;gap:4px;min-width:28px">${dot('#c45c5c')}<span>${r.fail}</span></span>
+              </span>
+            </div>`
+          })
+          .join('')
+        const more =
+          (item?.rules?.length || 0) > 4
+            ? `<div style="margin-top:4px;color:#94a3b8">…另有 ${(item?.rules?.length || 0) - 4} 条细则</div>`
+            : ''
+        const hint =
+          item?.rules?.length
+            ? `<div style="margin-top:8px;color:#94a3b8;font-size:11px">点击柱形查看细则分布</div>`
+            : ''
+        return `<div style="font-weight:600;margin-bottom:4px">${title}</div>${rows}${
+          ruleLines
+            ? `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(17,24,39,0.08)">细则分布${ruleLines}${more}</div>${hint}`
+            : ''
+        }`
+      },
     },
-    grid: { left: 40, right: 16, top: 24, bottom: 40 },
+    grid: {
+      left: 44,
+      right: 16,
+      top: 36,
+      bottom: rotate ? 64 : 40,
+    },
     xAxis: {
       type: 'category',
-      data: items.map((i) => i.name),
-      axisLabel: { interval: 0, rotate: items.length > 3 ? 20 : 0, color: '#6b7487' },
+      data: labels.length ? labels : ['暂无断言'],
+      axisLabel: {
+        interval: 0,
+        rotate,
+        color: '#6b7487',
+        fontSize: drilled ? 11 : 12,
+        hideOverlap: true,
+      },
       axisLine: { lineStyle: { color: 'rgba(17,24,39,0.12)' } },
+      axisTick: { alignWithLabel: true },
     },
     yAxis: {
       type: 'value',
-      max: 100,
-      axisLabel: { formatter: '{value}%', color: '#6b7487' },
+      minInterval: 1,
+      axisLabel: { color: '#6b7487', formatter: '{value}' },
       splitLine: { lineStyle: { color: 'rgba(17,24,39,0.06)' } },
+      name: '数量',
+      nameTextStyle: { color: '#6b7487', fontSize: 11, padding: [0, 28, 0, 0] },
     },
     series: [
       {
+        name: '通过',
         type: 'bar',
-        data: items.map((i) => i.pass_rate),
-        itemStyle: { color: '#0f766e', borderRadius: [4, 4, 0, 0] },
-        barWidth: 28,
+        data: items.length ? items.map((i) => i.pass) : [0],
+        barMaxWidth: drilled ? 18 : 22,
+        cursor: drilled ? 'default' : 'pointer',
+        itemStyle: { color: '#3d8b66', borderRadius: [3, 3, 0, 0] },
+      },
+      {
+        name: '失败',
+        type: 'bar',
+        data: items.length ? items.map((i) => i.fail) : [0],
+        barMaxWidth: drilled ? 18 : 22,
+        cursor: drilled ? 'default' : 'pointer',
+        itemStyle: { color: '#c45c5c', borderRadius: [3, 3, 0, 0] },
       },
     ],
   }
@@ -611,6 +946,8 @@ async function load() {
   }
   loading.value = true
   report.value = null
+  assertDrillKey.value = null
+  pieDrillFail.value = false
   matrixFiltersReady.value = false
   draftFilter.value = 'all'
   draftKeyword.value = ''
@@ -935,12 +1272,56 @@ onUnmounted(() => {
         <template v-if="report">
           <div class="charts">
             <div class="panel">
-              <div class="section-title">结果分布</div>
-              <VChart class="chart" :option="pieOption" autoresize />
+              <div class="section-title section-title-row">
+                <div class="section-title-main">
+                  <span>结果分布</span>
+                  <template v-if="pieDrillFail">
+                    <span class="section-crumb">/</span>
+                    <span class="section-crumb-current">失败明细</span>
+                  </template>
+                </div>
+                <a
+                  v-if="pieDrillFail"
+                  class="section-back"
+                  href="#"
+                  @click.prevent="exitPieDrill"
+                >
+                  返回总览
+                </a>
+              </div>
+              <VChart
+                class="chart"
+                :class="{ 'chart-clickable': !pieDrillFail && (report?.summary?.fail_count || 0) > 0 }"
+                :option="pieOption"
+                autoresize
+                @click="onPieChartClick"
+              />
             </div>
             <div class="panel">
-              <div class="section-title">供应商通过率</div>
-              <VChart class="chart" :option="barOption" autoresize />
+              <div class="section-title section-title-row">
+                <div class="section-title-main">
+                  <span>断言指标</span>
+                  <template v-if="assertDrillMetric">
+                    <span class="section-crumb">/</span>
+                    <span class="section-crumb-current">{{ assertDrillMetric.label }}</span>
+                  </template>
+                </div>
+                <a
+                  v-if="assertDrillMetric"
+                  class="section-back"
+                  href="#"
+                  @click.prevent="exitAssertDrill"
+                >
+                  返回指标
+                </a>
+              </div>
+              <VChart
+                class="chart"
+                :class="{ 'chart-clickable': !assertDrillMetric }"
+                :option="barOption"
+                autoresize
+                @click="onAssertChartClick"
+              />
             </div>
           </div>
 
@@ -1172,10 +1553,30 @@ onUnmounted(() => {
         <div class="field">
           <label>断言</label>
           <div v-if="detailRow.assertions?.length" class="assert-list">
-            <div v-for="(a, idx) in detailRow.assertions" :key="idx" class="assert-line">
-              <span class="assert-type" :class="a.pass ? 'ok' : 'fail'">{{ getAssertDisplayLabel(a.type) }}</span>
-              <span class="assert-reason">{{ a.reason || (a.pass ? '通过' : '未通过') }}</span>
-            </div>
+            <a-tooltip
+              v-for="(a, idx) in detailRow.assertions"
+              :key="idx"
+              placement="topLeft"
+              :mouse-enter-delay="0.12"
+              :overlay-style="{ maxWidth: '440px' }"
+            >
+              <template #title>
+                <div class="assert-rule-tip">
+                  <div class="assert-rule-tip-label">断言细则</div>
+                  <pre class="assert-rule-tip-body">{{ a.value || '暂无细则' }}</pre>
+                </div>
+              </template>
+              <div class="assert-line is-tip">
+                <span class="assert-type" :class="a.pass ? 'ok' : 'fail'">
+                  {{
+                    a.metric
+                      ? `${getAssertDisplayLabel(a.type)}·${a.metric}`
+                      : getAssertDisplayLabel(a.type)
+                  }}
+                </span>
+                <span class="assert-reason">{{ a.reason || (a.pass ? '通过' : '未通过') }}</span>
+              </div>
+            </a-tooltip>
           </div>
           <div v-else class="muted">{{ detailRow.reason || '暂无断言详情' }}</div>
         </div>
@@ -1540,10 +1941,65 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  overflow: visible;
+}
+
+.charts :deep(.panel),
+.charts .panel {
+  overflow: visible;
+}
+
+.charts .chart {
+  overflow: visible;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-title-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.section-crumb {
+  color: var(--ek-muted);
+  font-weight: 400;
+}
+
+.section-crumb-current {
+  font-weight: 500;
+  color: var(--ek-secondary, #4b5565);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.section-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ek-muted);
+  flex-shrink: 0;
+}
+
+.section-back {
+  font-size: 12px;
+  font-weight: 400;
+  flex-shrink: 0;
 }
 
 .chart {
   height: 220px;
+}
+
+.chart-clickable {
+  cursor: pointer;
 }
 
 .detail-panel {
@@ -1914,6 +2370,18 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+.assert-line.is-tip {
+  cursor: help;
+  border-radius: 6px;
+  padding: 4px 6px;
+  margin: 0 -6px;
+  transition: background 0.15s ease;
+}
+
+.assert-line.is-tip:hover {
+  background: color-mix(in srgb, var(--ek-raised, #f3f4f6) 80%, transparent);
+}
+
 .assert-reason {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -1925,6 +2393,23 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--ek-secondary);
   flex-shrink: 0;
+}
+
+.assert-rule-tip-label {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+
+.assert-rule-tip-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: "IBM Plex Sans", "PingFang SC", sans-serif;
+  max-height: 240px;
+  overflow: auto;
 }
 
 .assert-type.ok {
@@ -1988,4 +2473,5 @@ onUnmounted(() => {
 .report-detail-drawer .ant-drawer-header {
   max-width: 100%;
 }
+
 </style>

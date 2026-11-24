@@ -1,4 +1,5 @@
 import { dump, load } from 'js-yaml'
+import * as XLSX from 'xlsx'
 import type { GraderMeta } from '@/types'
 import {
   normalizeAssert,
@@ -199,28 +200,66 @@ function parseCsvRows(text: string): string[][] {
   return rows
 }
 
-function parseCsv(text: string, graders: GraderMeta[]): ImportedTestDraft[] {
-  const rows = parseCsvRows(text)
+function cellToString(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return String(value)
+}
+
+/** Shared path for CSV / Excel table imports (header row + data rows). */
+function parseTableMatrix(
+  rows: string[][],
+  graders: GraderMeta[],
+  emptyHeaderError: string,
+): ImportedTestDraft[] {
   if (rows.length < 2) return []
 
-  const headers = rows[0].map((h) => h.trim())
+  const headers = rows[0].map((h) => cellToString(h).trim())
   if (!headers.length || headers.every((h) => !h)) {
-    throw new Error('CSV 缺少表头')
+    throw new Error(emptyHeaderError)
   }
 
   const drafts: ImportedTestDraft[] = []
   for (let i = 1; i < rows.length; i += 1) {
-    const cells = rows[i]
-    if (cells.every((cell) => !cell.trim())) continue
+    const cells = rows[i] || []
+    if (cells.every((cell) => !cellToString(cell).trim())) continue
     const row: Record<string, unknown> = {}
     headers.forEach((header, index) => {
       if (!header) return
-      row[header] = cells[index] ?? ''
+      row[header] = cellToString(cells[index] ?? '')
     })
     const draft = normalizeDraft(row, graders, 'csv', drafts.length + 1)
     if (draft) drafts.push(draft)
   }
   return drafts
+}
+
+function parseCsv(text: string, graders: GraderMeta[]): ImportedTestDraft[] {
+  return parseTableMatrix(parseCsvRows(text), graders, 'CSV 缺少表头')
+}
+
+function parseExcel(data: ArrayBuffer, graders: GraderMeta[]): ImportedTestDraft[] {
+  let workbook: XLSX.WorkBook
+  try {
+    workbook = XLSX.read(data, { type: 'array', cellDates: false })
+  } catch {
+    throw new Error('无法解析 Excel 文件，请确认是 .xls / .xlsx')
+  }
+  const sheetName = workbook.SheetNames[0]
+  if (!sheetName) throw new Error('Excel 文件为空')
+  const sheet = workbook.Sheets[sheetName]
+  if (!sheet) throw new Error('Excel 工作表为空')
+
+  const matrix = XLSX.utils.sheet_to_json<(string | number | boolean | null | undefined)[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+    blankrows: false,
+  }) as (string | number | boolean | null | undefined)[][]
+
+  const rows = matrix.map((row) => (row || []).map((cell) => cellToString(cell)))
+  return parseTableMatrix(rows, graders, 'Excel 缺少表头')
 }
 
 function parseJsonOrYaml(
@@ -284,6 +323,23 @@ export function parseImportedTests(
   return drafts
 }
 
+/** Read a user-selected import file (.csv / .json / .yaml / .xls / .xlsx). */
+export async function parseImportedTestFile(
+  file: File,
+  graders: GraderMeta[] = [],
+): Promise<ImportedTestDraft[]> {
+  const lower = file.name.toLowerCase()
+  if (lower.endsWith('.xls') || lower.endsWith('.xlsx')) {
+    const buffer = await file.arrayBuffer()
+    if (!buffer.byteLength) throw new Error('文件为空')
+    const drafts = parseExcel(buffer, graders)
+    if (!drafts.length) throw new Error('未解析到有效用例')
+    return drafts
+  }
+  const text = await file.text()
+  return parseImportedTests(text, file.name, graders)
+}
+
 export function draftsToVisualTests(
   drafts: ImportedTestDraft[],
   preferredVarNames: string[] = [],
@@ -314,6 +370,7 @@ export function sampleAssertYaml(): string {
     [
       {
         type: 'llm-rubric',
+        metric: '内容质量',
         value: '言之有理即可',
         threshold: 0.7,
       },
@@ -427,7 +484,7 @@ export function buildExportedTestsCsv(
 
 /**
  * Build Excel-friendly SpreadsheetML (.xls) with tuned column widths.
- * Same columns as CSV so users can Save As CSV for re-import.
+ * Same columns as CSV; re-import via .xls / .xlsx / .csv.
  */
 export function buildExportedTestsExcelXml(
   tests: VisualTest[],

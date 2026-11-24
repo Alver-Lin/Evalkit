@@ -393,7 +393,7 @@ onUnmounted(() => {
       :footer="null"
     >
       <div class="kind-pick">
-        <p class="kind-hint">选择接入方式后填写评分模型配置；断言「模型评分」将从此处选择。</p>
+        <p class="kind-hint">选择接入方式后填写评分模型配置；断言「语义相似 / 模型评分」将从此处选择。</p>
         <div class="kind-grid">
           <button type="button" class="kind-card is-http" @click="startCreate('http')">
             <span class="kind-title">自定义 HTTP</span>

@@ -345,14 +345,14 @@ def call_api(prompt: str, options: dict, context: dict):
 
 #### 断言速查（按类）
 
-YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）把 `type` 换成对应名字即可。可视化里「语义相似 / 模型评分标准」的评分模型下拉 **只从「模型评测配置」选择**；保存时会把所选评分模型内嵌为断言的 `provider`。
+YAML 写在用例的 `assert` 列表中。变体类型（如 `similar:cosine`）把 `type` 换成对应名字即可。可视化里「语义相似 / 模型评分」的评分模型下拉 **只从「模型评测配置」选择**；保存时会把所选评分模型内嵌为断言的 `provider`。
 
-##### 模型评分
+##### 模型评分规则
 
 | 类型 | 中文名 | 适用场景 | YAML 示例 |
 |------|--------|----------|-----------|
 | `similar` / `similar:cosine` / `similar:dot` / `similar:euclidean` | 语义相似 | 语义接近即可，不要求原文一致 | <pre>- type: similar<br>  value: 法国的首都是巴黎<br>  threshold: 0.8<br>  provider: …</pre> |
-| `llm-rubric` | 模型评分标准 | 用自然语言标准让 LLM Judge 打分；运行时自动使用中文评分提示（不写入用户 YAML），判定说明（reason）为简体中文 | <pre>- type: llm-rubric<br>  value: 回答准确、有帮助，且不道歉推诿<br>  threshold: 0.7<br>  provider: …</pre> |
+| `llm-rubric` | 模型评分 | 用自然语言标准让 LLM Judge 打分；运行时自动使用中文评分提示（不写入用户 YAML），判定说明（reason）为简体中文 | <pre>- type: llm-rubric<br>  value: 回答准确、有帮助，且不道歉推诿<br>  threshold: 0.7<br>  provider: …</pre> |
 | `factuality` / `model-graded-factuality` | 事实性 | 对照参考事实句是否一致 | <pre>- type: factuality<br>  value: 萨克拉门托是加利福尼亚州的首府</pre> |
 | `model-graded-closedqa` | 封闭问答评分 | 是否满足某条要求（如不道歉） | <pre>- type: model-graded-closedqa<br>  value: 回答不道歉、直接给出结论</pre> |
 | `answer-relevance` | 答案相关性 | 输出是否答到原问题上 | <pre>- type: answer-relevance<br>  threshold: 0.7</pre> |
